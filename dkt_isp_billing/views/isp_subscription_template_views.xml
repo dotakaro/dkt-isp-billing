@@ -49,7 +49,7 @@
     </record>
 
     <!-- Action -->
-    <record id="action_isp_subscription_template" model="ir.actions.act_window">
+    <record id="view_isp_subscription_template_action" model="ir.actions.act_window">
         <field name="name">Template Berlangganan</field>
         <field name="res_model">isp.subscription.template</field>
         <field name="view_mode">tree,form</field>

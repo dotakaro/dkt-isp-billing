@@ -66,7 +66,7 @@
     </record>
 
     <!-- Action -->
-    <record id="action_isp_installation_fee" model="ir.actions.act_window">
+    <record id="view_isp_installation_fee_action" model="ir.actions.act_window">
         <field name="name">Biaya Instalasi</field>
         <field name="res_model">isp.installation.fee</field>
         <field name="view_mode">tree,form</field>

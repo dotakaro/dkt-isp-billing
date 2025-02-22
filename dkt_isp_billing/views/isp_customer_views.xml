@@ -1,24 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Action -->
-    <record id="action_isp_customer" model="ir.actions.act_window">
-        <field name="name">Pelanggan</field>
-        <field name="res_model">isp.customer</field>
-        <field name="view_mode">tree,form</field>
-    </record>
-
     <!-- Tree View -->
     <record id="view_isp_customer_tree" model="ir.ui.view">
         <field name="name">isp.customer.tree</field>
         <field name="model">isp.customer</field>
         <field name="arch" type="xml">
-            <tree>
-                <field name="name"/>
+            <tree string="Pelanggan" decoration-danger="state=='isolated'" decoration-success="state=='active'">
                 <field name="customer_id"/>
-                <field name="identity_number"/>
+                <field name="name"/>
                 <field name="mobile"/>
                 <field name="package_id"/>
                 <field name="state"/>
+                <field name="is_adopted_secret"/>
             </tree>
         </field>
     </record>
@@ -28,80 +21,99 @@
         <field name="name">isp.customer.form</field>
         <field name="model">isp.customer</field>
         <field name="arch" type="xml">
-            <form>
+            <form string="Pelanggan">
                 <header>
                     <button name="action_activate" 
                             string="Aktifkan" 
-                            type="object"
+                            type="object" 
                             class="oe_highlight"
                             invisible="state != 'draft'"/>
                     <button name="action_isolate" 
                             string="Isolir" 
                             type="object"
-                            class="btn-warning"
                             invisible="state != 'active'"/>
-                    <button name="action_reactivate" 
-                            string="Aktifkan Kembali" 
+                    <button name="action_enable" 
+                            string="Buka Isolir" 
                             type="object"
                             class="oe_highlight"
                             invisible="state != 'isolated'"/>
-                    <button name="action_terminate" 
-                            string="Terminasi" 
-                            type="object"
-                            class="btn-danger"
-                            invisible="state not in ['active', 'isolated']"/>
-                    <button name="action_create_subscription" 
-                            string="Buat Subscription" 
-                            type="object"
-                            class="btn-primary"
-                            invisible="state != 'active'"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
-                    <div class="oe_button_box" name="button_box">
-                        <button name="action_view_subscriptions" 
-                                type="object"
-                                class="oe_stat_button" 
-                                icon="fa-book">
-                            <field name="subscription_count" widget="statinfo" string="Subscriptions"/>
-                        </button>
-                    </div>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="Nama Pelanggan"/>
+                            <field name="customer_id" readonly="1"/>
                         </h1>
-                        <h2>
-                            <field name="customer_id"/>
-                        </h2>
                     </div>
                     <group>
                         <group>
-                            <field name="partner_id"/>
-                            <field name="identity_number"/>
+                            <field name="name"/>
                             <field name="mobile"/>
+                            <field name="email"/>
                             <field name="address"/>
                         </group>
                         <group>
                             <field name="package_id"/>
-                            <field name="subscription_template_id" 
-                                   force_save="1"/>
+                            <field name="mikrotik_user_id" readonly="1"/>
+                            <field name="is_adopted_secret" readonly="1"/>
                         </group>
                     </group>
                     <notebook>
-                        <page string="CPE">
-                            <field name="cpe_ids"/>
-                        </page>
-                        <page string="Biaya Instalasi">
-                            <field name="installation_fee_ids"/>
+                        <page string="CPE" name="cpe">
+                            <field name="cpe_ids">
+                                <tree editable="bottom">
+                                    <field name="name"/>
+                                    <field name="mac_address"/>
+                                    <field name="ip_address"/>
+                                    <field name="pppoe_username"/>
+                                    <field name="pppoe_password"/>
+                                    <field name="state"/>
+                                </tree>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
                     <field name="message_ids"/>
                 </div>
             </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_isp_customer_search" model="ir.ui.view">
+        <field name="name">isp.customer.search</field>
+        <field name="model">isp.customer</field>
+        <field name="arch" type="xml">
+            <search string="Pelanggan">
+                <field name="customer_id"/>
+                <field name="name"/>
+                <field name="mobile"/>
+                <field name="package_id"/>
+                <separator/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Aktif" name="active" domain="[('state', '=', 'active')]"/>
+                <filter string="Terisolir" name="isolated" domain="[('state', '=', 'isolated')]"/>
+                <filter string="Secret Diadopsi" name="adopted" domain="[('is_adopted_secret', '=', True)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
+                    <filter string="Paket" name="group_by_package" context="{'group_by': 'package_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="view_isp_customer_action" model="ir.actions.act_window">
+        <field name="name">Pelanggan</field>
+        <field name="res_model">isp.customer</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_isp_customer_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Buat pelanggan baru
+            </p>
         </field>
     </record>
 </odoo> 

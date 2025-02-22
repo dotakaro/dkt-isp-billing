@@ -1,4 +1,15 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_isp_customer,isp.customer,model_isp_customer,base.group_user,1,1,1,1
+access_isp_package,isp.package,model_isp_package,base.group_user,1,1,1,1
+access_isp_cpe,isp.cpe,model_isp_cpe,base.group_user,1,1,1,1
+access_isp_device_history,isp.device.history,model_isp_device_history,base.group_user,1,1,1,1
+access_isp_installation_type,isp.installation.type,model_isp_installation_type,base.group_user,1,1,1,1
+access_isp_installation_fee,isp.installation.fee,model_isp_installation_fee,base.group_user,1,1,1,1
+access_isp_subscription_template,isp.subscription.template,model_isp_subscription_template,base.group_user,1,1,1,1
+access_isp_subscription,isp.subscription,model_isp_subscription,base.group_user,1,1,1,1
+access_isp_mikrotik_config,isp.mikrotik.config,model_isp_mikrotik_config,base.group_user,1,1,1,1
+access_isp_mikrotik_profile,isp.mikrotik.profile,model_isp_mikrotik_profile,base.group_user,1,1,1,1
+access_isp_report,isp.report,model_isp_report,base.group_user,1,1,1,1
 access_isp_customer_user,isp.customer.user,model_isp_customer,base.group_user,1,1,1,1
 access_isp_package_user,isp.package.user,model_isp_package,base.group_user,1,1,1,1
 access_isp_cpe_user,isp.cpe.user,model_isp_cpe,base.group_user,1,1,1,1
@@ -10,3 +21,4 @@ access_isp_subscription_user,isp.subscription.user,model_isp_subscription,base.g
 access_isp_mikrotik_config_user,isp.mikrotik.config.user,model_isp_mikrotik_config,base.group_user,1,1,1,1
 access_isp_mikrotik_profile_user,isp.mikrotik.profile.user,model_isp_mikrotik_profile,base.group_user,1,1,1,1
 access_isp_report_user,isp.report.user,model_isp_report,base.group_user,1,1,1,1
+access_isp_adopt_secret_wizard,isp.adopt.secret.wizard,model_isp_adopt_secret_wizard,base.group_user,1,1,1,1

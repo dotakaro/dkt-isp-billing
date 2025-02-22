@@ -46,7 +46,7 @@
     </record>
 
     <!-- Action -->
-    <record id="action_isp_report" model="ir.actions.act_window">
+    <record id="view_isp_report_action" model="ir.actions.act_window">
         <field name="name">Laporan</field>
         <field name="res_model">isp.report</field>
         <field name="view_mode">tree,form</field>

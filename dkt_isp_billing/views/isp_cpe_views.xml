@@ -1,18 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Action -->
-    <record id="action_isp_cpe" model="ir.actions.act_window">
-        <field name="name">CPE</field>
-        <field name="res_model">isp.cpe</field>
-        <field name="view_mode">tree,form</field>
-    </record>
-
     <!-- Tree View -->
     <record id="view_isp_cpe_tree" model="ir.ui.view">
         <field name="name">isp.cpe.tree</field>
         <field name="model">isp.cpe</field>
         <field name="arch" type="xml">
-            <tree>
+            <tree string="CPE" decoration-danger="state=='draft'" decoration-success="state=='active'">
                 <field name="name"/>
                 <field name="customer_id"/>
                 <field name="mac_address"/>
@@ -28,12 +21,8 @@
         <field name="name">isp.cpe.form</field>
         <field name="model">isp.cpe</field>
         <field name="arch" type="xml">
-            <form>
+            <form string="CPE">
                 <header>
-                    <button name="action_generate_pppoe_credentials" 
-                            string="Generate PPPoE Credentials" 
-                            type="object"
-                            class="oe_highlight"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -47,31 +36,58 @@
                             <field name="customer_id"/>
                             <field name="mac_address"/>
                             <field name="ip_address"/>
-                            <field name="ownership"/>
                         </group>
-                        <group>
-                            <field name="outdoor_unit"/>
-                            <field name="router"/>
-                        </group>
-                    </group>
-                    <group string="PPPoE Credentials">
                         <group>
                             <field name="pppoe_username"/>
-                            <field name="pppoe_password" password="True"/>
+                            <field name="pppoe_password"/>
                         </group>
                     </group>
                     <notebook>
-                        <page string="Riwayat">
-                            <field name="history_ids"/>
+                        <page string="Catatan" name="notes">
+                            <field name="notes"/>
                         </page>
                     </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
                     <field name="message_ids"/>
                 </div>
             </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_isp_cpe_search" model="ir.ui.view">
+        <field name="name">isp.cpe.search</field>
+        <field name="model">isp.cpe</field>
+        <field name="arch" type="xml">
+            <search string="CPE">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="mac_address"/>
+                <field name="ip_address"/>
+                <field name="pppoe_username"/>
+                <separator/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Aktif" name="active" domain="[('state', '=', 'active')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'customer_id'}"/>
+                    <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="view_isp_cpe_action" model="ir.actions.act_window">
+        <field name="name">CPE</field>
+        <field name="res_model">isp.cpe</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_isp_cpe_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Buat CPE baru
+            </p>
         </field>
     </record>
 </odoo> 

@@ -38,7 +38,7 @@
     </record>
 
     <!-- Action -->
-    <record id="action_isp_installation_type" model="ir.actions.act_window">
+    <record id="view_isp_installation_type_action" model="ir.actions.act_window">
         <field name="name">Jenis Instalasi</field>
         <field name="res_model">isp.installation.type</field>
         <field name="view_mode">tree,form</field>

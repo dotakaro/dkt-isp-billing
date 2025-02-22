@@ -82,17 +82,16 @@
     </record>
 
     <!-- Action -->
-    <record id="action_isp_mikrotik_profile" model="ir.actions.act_window">
+    <record id="view_isp_mikrotik_profile_action" model="ir.actions.act_window">
         <field name="name">PPPoE Profile</field>
         <field name="res_model">isp.mikrotik.profile</field>
         <field name="view_mode">tree,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Belum ada profile PPPoE
+                Belum ada PPPoE profile
             </p>
             <p>
-                Klik tombol 'Sinkronkan dari Mikrotik' untuk mengambil profile yang ada di router,
-                atau buat profile baru yang akan otomatis dibuat di router Mikrotik.
+                Klik tombol 'Buat' untuk membuat profile baru.
             </p>
         </field>
     </record>
@@ -108,11 +107,4 @@
 action = model.action_sync_from_mikrotik()
         </field>
     </record>
-
-    <!-- Menu -->
-    <menuitem id="menu_isp_mikrotik_profile"
-              name="PPPoE Profile"
-              parent="menu_isp_configuration"
-              action="action_isp_mikrotik_profile"
-              sequence="20"/>
 </odoo> 

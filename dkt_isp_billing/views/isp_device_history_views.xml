@@ -53,7 +53,7 @@
     </record>
 
     <!-- Action -->
-    <record id="action_isp_device_history" model="ir.actions.act_window">
+    <record id="view_isp_device_history_action" model="ir.actions.act_window">
         <field name="name">Riwayat Perangkat</field>
         <field name="res_model">isp.device.history</field>
         <field name="view_mode">tree,form</field>

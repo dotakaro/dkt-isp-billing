@@ -1,5 +1,8 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class ISPCustomer(models.Model):
     _name = 'isp.customer'
@@ -11,6 +14,7 @@ class ISPCustomer(models.Model):
     identity_number = fields.Char('No KTP', required=True, tracking=True)
     address = fields.Text('Alamat', required=True, tracking=True)
     mobile = fields.Char('No HP', required=True, tracking=True)
+    email = fields.Char('Email', tracking=True)
     
     package_id = fields.Many2one('isp.package', string='Paket Layanan', tracking=True)
     cpe_ids = fields.One2many('isp.cpe', 'customer_id', string='CPE')
@@ -27,6 +31,10 @@ class ISPCustomer(models.Model):
     subscription_ids = fields.One2many('isp.subscription', 'customer_id', string='Subscriptions')
     subscription_count = fields.Integer(compute='_compute_subscription_count')
     subscription_template_id = fields.Many2one('isp.subscription.template', string='Template Berlangganan')
+    
+    mikrotik_user_id = fields.Char('Mikrotik User ID', readonly=True)
+    is_adopted_secret = fields.Boolean('Is Adopted Secret', default=False, 
+                                     help='Menandakan bahwa secret/user ini diadopsi dari Mikrotik yang sudah ada')
     
     @api.model_create_multi
     def create(self, vals_list):
@@ -231,4 +239,195 @@ class ISPCustomer(models.Model):
         active_subs.write({'state': 'terminated'})
         
         self.write({'state': 'terminated'})
-        return True 
+        return True
+
+    def _check_existing_mikrotik_user(self, username, user_id):
+        """
+        Mengecek apakah user Mikrotik sudah terkait dengan pelanggan lain
+        Returns: customer yang menggunakan secret tersebut atau False
+        """
+        existing_customer = self.search([
+            ('mikrotik_user_id', '=', user_id),
+            ('id', '!=', self.id)
+        ], limit=1)
+        return existing_customer
+
+    def action_adopt_secret(self):
+        """
+        Mengadopsi secret/user yang sudah ada di Mikrotik
+        """
+        self.ensure_one()
+        if not self.package_id or not self.cpe_ids:
+            raise ValidationError('Paket dan CPE harus diisi terlebih dahulu!')
+            
+        cpe = self.cpe_ids[0]
+        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        if not mikrotik:
+            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+            
+        api = mikrotik.get_connection()
+        if not api:
+            raise ValidationError('Gagal terhubung ke Mikrotik!')
+            
+        try:
+            user_api = api.get_resource('/ppp/secret')
+            existing_user = user_api.get(name=cpe.pppoe_username)
+            
+            if existing_user and len(existing_user) > 0:
+                user_id = existing_user[0].get('.id')
+                # Update profile dan informasi lainnya
+                user_api.set(
+                    id=user_id,
+                    profile=self.package_id.profile_id.name,
+                    password=cpe.pppoe_password,
+                    service='pppoe',
+                    remote_address=cpe.ip_address,
+                    comment=f'Customer: {self.name} - {self.customer_id}',
+                    disabled='no'
+                )
+                self.write({
+                    'mikrotik_user_id': user_id,
+                    'state': 'active',
+                    'is_adopted_secret': True
+                })
+                if self.cpe_ids:
+                    self.cpe_ids[0].state = 'active'
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Sukses',
+                        'message': f'Secret/User PPPoE {cpe.pppoe_username} berhasil diadopsi',
+                        'type': 'success',
+                    }
+                }
+        except Exception as e:
+            raise ValidationError(f'Gagal mengadopsi secret: {str(e)}')
+        finally:
+            if api:
+                try:
+                    api.disconnect()
+                except:
+                    pass
+
+    def _create_mikrotik_user(self):
+        self.ensure_one()
+        if not self.package_id or not self.cpe_ids:
+            raise ValidationError('Paket dan CPE harus diisi terlebih dahulu!')
+            
+        cpe = self.cpe_ids[0]
+        if not cpe.pppoe_username or not cpe.pppoe_password:
+            raise ValidationError('PPPoE Username dan Password harus diisi di CPE!')
+            
+        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        if not mikrotik:
+            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+            
+        api = mikrotik.get_connection()
+        if not api:
+            raise ValidationError('Gagal terhubung ke Mikrotik!')
+            
+        try:
+            user_api = api.get_resource('/ppp/secret')
+            
+            # Cek apakah user sudah ada di Mikrotik
+            try:
+                existing_user = user_api.get(name=cpe.pppoe_username)
+            except Exception as e:
+                existing_user = []
+                
+            if existing_user and len(existing_user) > 0:
+                user_id = existing_user[0].get('.id')
+                if user_id:
+                    # Cek apakah secret sudah digunakan oleh pelanggan lain di Odoo
+                    existing_customer = self._check_existing_mikrotik_user(cpe.pppoe_username, user_id)
+                    if existing_customer:
+                        raise ValidationError(
+                            f'Secret/User PPPoE {cpe.pppoe_username} sudah digunakan oleh pelanggan: '
+                            f'{existing_customer.name} ({existing_customer.customer_id})\n'
+                            f'Silahkan gunakan username PPPoE yang lain.'
+                        )
+                    
+                    # Jika belum digunakan di Odoo, tampilkan wizard konfirmasi adopsi
+                    return {
+                        'type': 'ir.actions.act_window',
+                        'name': 'Konfirmasi Adopsi Secret',
+                        'res_model': 'isp.adopt.secret.wizard',
+                        'view_mode': 'form',
+                        'target': 'new',
+                        'context': {
+                            'default_customer_id': self.id,
+                            'default_secret_name': cpe.pppoe_username,
+                            'default_secret_id': user_id,
+                        }
+                    }
+            
+            # Jika user belum ada di Mikrotik, buat baru
+            try:
+                result = user_api.add(
+                    name=cpe.pppoe_username,
+                    password=cpe.pppoe_password,
+                    service='pppoe',
+                    profile=self.package_id.profile_id.name,
+                    remote_address=cpe.ip_address,
+                    comment=f'Customer: {self.name} - {self.customer_id}',
+                    disabled='no'
+                )
+                
+                if isinstance(result, list) and len(result) > 0:
+                    self.write({
+                        'mikrotik_user_id': result[0].get('.id'),
+                        'state': 'active'
+                    })
+                    if self.cpe_ids:
+                        self.cpe_ids[0].state = 'active'
+                    return {
+                        'type': 'ir.actions.client',
+                        'tag': 'display_notification',
+                        'params': {
+                            'title': 'Sukses',
+                            'message': f'User PPPoE {cpe.pppoe_username} berhasil dibuat',
+                            'type': 'success',
+                        }
+                    }
+                return False
+                
+            except Exception as e:
+                if 'already exists' in str(e):
+                    # Jika error karena secret sudah ada, coba cek lagi dan tampilkan wizard adopsi
+                    try:
+                        existing_user = user_api.get(name=cpe.pppoe_username)
+                        if existing_user and len(existing_user) > 0:
+                            user_id = existing_user[0].get('.id')
+                            if user_id:
+                                existing_customer = self._check_existing_mikrotik_user(cpe.pppoe_username, user_id)
+                                if existing_customer:
+                                    raise ValidationError(
+                                        f'Secret/User PPPoE {cpe.pppoe_username} sudah digunakan oleh pelanggan: '
+                                        f'{existing_customer.name} ({existing_customer.customer_id})\n'
+                                        f'Silahkan gunakan username PPPoE yang lain.'
+                                    )
+                                
+                                return {
+                                    'type': 'ir.actions.act_window',
+                                    'name': 'Konfirmasi Adopsi Secret',
+                                    'res_model': 'isp.adopt.secret.wizard',
+                                    'view_mode': 'form',
+                                    'target': 'new',
+                                    'context': {
+                                        'default_customer_id': self.id,
+                                        'default_secret_name': cpe.pppoe_username,
+                                        'default_secret_id': user_id,
+                                    }
+                                }
+                    except Exception as e2:
+                        _logger.error(f'Error checking existing secret after add failed: {str(e2)}')
+                raise ValidationError(f'Gagal membuat user PPPoE di Mikrotik: {str(e)}')
+        except Exception as e:
+            raise ValidationError(f'Gagal membuat user PPPoE di Mikrotik: {str(e)}')
+        finally:
+            if api:
+                try:
+                    api.disconnect()
+                except:
+                    pass 

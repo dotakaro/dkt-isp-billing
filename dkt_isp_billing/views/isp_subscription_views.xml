@@ -105,9 +105,17 @@
     </record>
 
     <!-- Action -->
-    <record id="action_isp_subscription" model="ir.actions.act_window">
+    <record id="view_isp_subscription_action" model="ir.actions.act_window">
         <field name="name">Subscription</field>
         <field name="res_model">isp.subscription</field>
         <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada subscription
+            </p>
+            <p>
+                Klik tombol 'Buat' untuk membuat subscription baru.
+            </p>
+        </field>
     </record>
 </odoo> 

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Action -->
+    <record id="action_isp_customer" model="ir.actions.act_window">
+        <field name="name">Pelanggan</field>
+        <field name="res_model">isp.customer</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_isp_customer_tree" model="ir.ui.view">
+        <field name="name">isp.customer.tree</field>
+        <field name="model">isp.customer</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="identity_number"/>
+                <field name="mobile"/>
+                <field name="package_id"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_customer_form" model="ir.ui.view">
+        <field name="name">isp.customer.form</field>
+        <field name="model">isp.customer</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_activate" 
+                            string="Aktifkan" 
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'draft'"/>
+                    <button name="action_isolate" 
+                            string="Isolir" 
+                            type="object"
+                            class="btn-warning"
+                            invisible="state != 'active'"/>
+                    <button name="action_reactivate" 
+                            string="Aktifkan Kembali" 
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'isolated'"/>
+                    <button name="action_terminate" 
+                            string="Terminasi" 
+                            type="object"
+                            class="btn-danger"
+                            invisible="state not in ['active', 'isolated']"/>
+                    <button name="action_create_subscription" 
+                            string="Buat Subscription" 
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_subscriptions" 
+                                type="object"
+                                class="oe_stat_button" 
+                                icon="fa-book">
+                            <field name="subscription_count" widget="statinfo" string="Subscriptions"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nama Pelanggan"/>
+                        </h1>
+                        <h2>
+                            <field name="customer_id"/>
+                        </h2>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="identity_number"/>
+                            <field name="mobile"/>
+                            <field name="address"/>
+                        </group>
+                        <group>
+                            <field name="package_id"/>
+                            <field name="subscription_template_id" 
+                                   force_save="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="CPE">
+                            <field name="cpe_ids"/>
+                        </page>
+                        <page string="Biaya Instalasi">
+                            <field name="installation_fee_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+</odoo> 

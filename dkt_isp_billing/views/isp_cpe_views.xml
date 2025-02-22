@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Action -->
+    <record id="action_isp_cpe" model="ir.actions.act_window">
+        <field name="name">CPE</field>
+        <field name="res_model">isp.cpe</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_isp_cpe_tree" model="ir.ui.view">
+        <field name="name">isp.cpe.tree</field>
+        <field name="model">isp.cpe</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="mac_address"/>
+                <field name="ip_address"/>
+                <field name="pppoe_username"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_cpe_form" model="ir.ui.view">
+        <field name="name">isp.cpe.form</field>
+        <field name="model">isp.cpe</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_generate_pppoe_credentials" 
+                            string="Generate PPPoE Credentials" 
+                            type="object"
+                            class="oe_highlight"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nama Perangkat"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="customer_id"/>
+                            <field name="mac_address"/>
+                            <field name="ip_address"/>
+                            <field name="ownership"/>
+                        </group>
+                        <group>
+                            <field name="outdoor_unit"/>
+                            <field name="router"/>
+                        </group>
+                    </group>
+                    <group string="PPPoE Credentials">
+                        <group>
+                            <field name="pppoe_username"/>
+                            <field name="pppoe_password" password="True"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Riwayat">
+                            <field name="history_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+</odoo> 

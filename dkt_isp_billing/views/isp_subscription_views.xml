@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_isp_subscription_tree" model="ir.ui.view">
+        <field name="name">isp.subscription.tree</field>
+        <field name="model">isp.subscription</field>
+        <field name="arch" type="xml">
+            <tree decoration-info="state == 'draft'" 
+                  decoration-success="state == 'active'"
+                  decoration-warning="state == 'isolated'"
+                  decoration-danger="state == 'cancelled'">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="package_id"/>
+                <field name="date_start"/>
+                <field name="next_invoice_date"/>
+                <field name="amount"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_subscription_form" model="ir.ui.view">
+        <field name="name">isp.subscription.form</field>
+        <field name="model">isp.subscription</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="generate_invoice" 
+                            string="Buat Invoice" 
+                            type="object" 
+                            class="oe_highlight"
+                            invisible="state != 'active'"/>
+                    <button name="action_activate" 
+                            string="Aktivasi" 
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'draft'"/>
+                    <button name="action_isolate" 
+                            string="Isolir" 
+                            type="object"
+                            invisible="state != 'active'"/>
+                    <button name="action_cancel" 
+                            string="Batalkan" 
+                            type="object"
+                            invisible="state == 'cancelled'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="customer_id"/>
+                            <field name="package_id"/>
+                            <field name="amount"/>
+                        </group>
+                        <group>
+                            <field name="date_start"/>
+                            <field name="due_day"/>
+                            <field name="next_invoice_date"/>
+                            <field name="last_invoice_date"/>
+                            <field name="recurring_interval"/>
+                            <field name="recurring_rule_type"/>
+                        </group>
+                        <group>
+                            <field name="last_notification_date" force_save="1"/>
+                            <field name="mikrotik_user" force_save="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_isp_subscription_search" model="ir.ui.view">
+        <field name="name">isp.subscription.search</field>
+        <field name="model">isp.subscription</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="package_id"/>
+                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
+                <filter string="Aktif" name="active" domain="[('state','=','active')]"/>
+                <filter string="Terisolir" name="isolated" domain="[('state','=','isolated')]"/>
+                <filter string="Dibatalkan" name="cancelled" domain="[('state','=','cancelled')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Pelanggan" name="customer" context="{'group_by':'customer_id'}"/>
+                    <filter string="Paket" name="package" context="{'group_by':'package_id'}"/>
+                    <filter string="Status" name="state" context="{'group_by':'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_isp_subscription" model="ir.actions.act_window">
+        <field name="name">Subscription</field>
+        <field name="res_model">isp.subscription</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo> 

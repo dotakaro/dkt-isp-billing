@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_isp_installation_type_tree" model="ir.ui.view">
+        <field name="name">isp.installation.type.tree</field>
+        <field name="model">isp.installation.type</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="price"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_installation_type_form" model="ir.ui.view">
+        <field name="name">isp.installation.type.form</field>
+        <field name="model">isp.installation.type</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                        </group>
+                        <group>
+                            <field name="price"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <field name="description"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_isp_installation_type" model="ir.actions.act_window">
+        <field name="name">Jenis Instalasi</field>
+        <field name="res_model">isp.installation.type</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo> 

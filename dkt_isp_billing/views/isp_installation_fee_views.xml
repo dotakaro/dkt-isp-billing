@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_isp_installation_fee_tree" model="ir.ui.view">
+        <field name="name">isp.installation.fee.tree</field>
+        <field name="model">isp.installation.fee</field>
+        <field name="arch" type="xml">
+            <tree decoration-info="state == 'draft'" decoration-success="state == 'paid'" decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="customer_id"/>
+                <field name="installation_type_id"/>
+                <field name="amount"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_installation_fee_form" model="ir.ui.view">
+        <field name="name">isp.installation.fee.form</field>
+        <field name="model">isp.installation.fee</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_confirm" 
+                            string="Konfirmasi" 
+                            type="object" 
+                            class="oe_highlight" 
+                            invisible="state != 'draft'"/>
+                    <field name="state" 
+                           widget="statusbar" 
+                           statusbar_visible="draft,confirmed,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="customer_id"/>
+                            <field name="installation_type_id"/>
+                            <field name="date"/>
+                        </group>
+                        <group>
+                            <field name="amount"/>
+                            <field name="technician_id"/>
+                            <field name="invoice_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Catatan">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_isp_installation_fee" model="ir.actions.act_window">
+        <field name="name">Biaya Instalasi</field>
+        <field name="res_model">isp.installation.fee</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo> 

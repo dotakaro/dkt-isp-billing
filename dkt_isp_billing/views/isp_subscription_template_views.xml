@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_isp_subscription_template_tree" model="ir.ui.view">
+        <field name="name">isp.subscription.template.tree</field>
+        <field name="model">isp.subscription.template</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="package_id"/>
+                <field name="recurring_interval"/>
+                <field name="recurring_rule_type"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_subscription_template_form" model="ir.ui.view">
+        <field name="name">isp.subscription.template.form</field>
+        <field name="model">isp.subscription.template</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nama Template"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="package_id"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="recurring_interval"/>
+                            <field name="recurring_rule_type"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="Deskripsi template..."/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_isp_subscription_template" model="ir.actions.act_window">
+        <field name="name">Template Berlangganan</field>
+        <field name="res_model">isp.subscription.template</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo> 

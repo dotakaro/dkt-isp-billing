@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Menu Root -->
+    <menuitem id="menu_isp_root"
+              name="ISP Billing"
+              sequence="10"/>
+              
+    <!-- Submenu untuk Pelanggan -->
+    <menuitem id="menu_isp_customer"
+              name="Pelanggan"
+              parent="menu_isp_root"
+              action="action_isp_customer"
+              sequence="10"/>
+              
+    <!-- Submenu untuk Layanan -->
+    <menuitem id="menu_isp_service"
+              name="Layanan"
+              parent="menu_isp_root"
+              sequence="20"/>
+              
+    <menuitem id="menu_isp_package"
+              name="Paket"
+              parent="menu_isp_service"
+              action="action_isp_package"
+              sequence="10"/>
+              
+    <menuitem id="menu_isp_subscription"
+              name="Subscription"
+              parent="menu_isp_service"
+              action="action_isp_subscription"
+              sequence="20"/>
+
+    <menuitem id="menu_isp_installation_type"
+              name="Jenis Instalasi"
+              parent="menu_isp_service"
+              action="action_isp_installation_type"
+              sequence="30"/>
+
+    <menuitem id="menu_isp_subscription_template"
+              name="Template Berlangganan"
+              parent="menu_isp_service"
+              action="action_isp_subscription_template"
+              sequence="40"/>
+              
+    <!-- Submenu untuk Perangkat -->
+    <menuitem id="menu_isp_device"
+              name="Perangkat"
+              parent="menu_isp_root"
+              sequence="30"/>
+              
+    <menuitem id="menu_isp_cpe"
+              name="CPE"
+              parent="menu_isp_device"
+              action="action_isp_cpe"
+              sequence="10"/>
+              
+    <menuitem id="menu_isp_device_history"
+              name="Riwayat Perangkat"
+              parent="menu_isp_device"
+              action="action_isp_device_history"
+              sequence="20"/>
+
+    <!-- Submenu untuk Konfigurasi -->
+    <menuitem id="menu_isp_configuration"
+              name="Konfigurasi"
+              parent="menu_isp_root"
+              sequence="100"/>
+
+    <menuitem id="menu_isp_mikrotik_config"
+              name="Mikrotik"
+              parent="menu_isp_configuration"
+              action="action_isp_mikrotik_config"
+              sequence="20"/>
+
+    <!-- Submenu untuk Laporan -->
+    <menuitem id="menu_isp_report"
+              name="Laporan"
+              parent="menu_isp_root"
+              sequence="90"/>
+
+    <menuitem id="menu_isp_report_list"
+              name="Semua Laporan"
+              parent="menu_isp_report"
+              action="action_isp_report"
+              sequence="10"/>
+</odoo> 

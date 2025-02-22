@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_isp_device_history_tree" model="ir.ui.view">
+        <field name="name">isp.device.history.tree</field>
+        <field name="model">isp.device.history</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="date"/>
+                <field name="customer_id"/>
+                <field name="device_name"/>
+                <field name="technician_id"/>
+                <field name="cost"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_device_history_form" model="ir.ui.view">
+        <field name="name">isp.device.history.form</field>
+        <field name="model">isp.device.history</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="date"/>
+                            <field name="cpe_id"/>
+                            <field name="customer_id"/>
+                            <field name="device_name"/>
+                        </group>
+                        <group>
+                            <field name="replacement_reason"/>
+                            <field name="ownership"/>
+                            <field name="technician_id"/>
+                            <field name="cost"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_isp_device_history" model="ir.actions.act_window">
+        <field name="name">Riwayat Perangkat</field>
+        <field name="res_model">isp.device.history</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo> 

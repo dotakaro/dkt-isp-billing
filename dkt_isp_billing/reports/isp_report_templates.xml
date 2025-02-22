@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Customer Report Template -->
+    <template id="report_customer_document">
+        <t t-call="web.external_layout">
+            <div class="page">
+                <h2>Laporan Pelanggan</h2>
+                <div class="row mt32 mb32">
+                    <div class="col-3">
+                        <strong>Periode:</strong>
+                        <p t-field="doc.date_from"/> - <span t-field="doc.date_to"/>
+                    </div>
+                </div>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID Pelanggan</th>
+                            <th>Nama</th>
+                            <th>Paket</th>
+                            <th>Status</th>
+                            <th>Tanggal Registrasi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="customers" t-as="customer">
+                            <tr>
+                                <td><span t-field="customer.customer_id"/></td>
+                                <td><span t-field="customer.name"/></td>
+                                <td><span t-field="customer.package_id.name"/></td>
+                                <td><span t-field="customer.state"/></td>
+                                <td><span t-field="customer.create_date"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_customer">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="dkt_isp_billing.report_customer_document"/>
+            </t>
+        </t>
+    </template>
+
+    <!-- CPE Report Template -->
+    <template id="report_cpe_document">
+        <t t-call="web.external_layout">
+            <div class="page">
+                <h2>Laporan CPE</h2>
+                <div class="row mt32 mb32">
+                    <div class="col-3">
+                        <strong>Periode:</strong>
+                        <p t-field="doc.date_from"/> - <span t-field="doc.date_to"/>
+                    </div>
+                </div>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Pelanggan</th>
+                            <th>Perangkat</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="cpes" t-as="cpe">
+                            <tr>
+                                <td><span t-field="cpe.customer_id.name"/></td>
+                                <td><span t-field="cpe.name"/></td>
+                                <td><span t-field="cpe.ip_address"/></td>
+                                <td><span t-field="cpe.ownership"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_cpe">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="dkt_isp_billing.report_cpe_document"/>
+            </t>
+        </t>
+    </template>
+
+    <!-- Package Report Template -->
+    <template id="report_package_document">
+        <t t-call="web.external_layout">
+            <div class="page">
+                <h2>Laporan Paket Layanan</h2>
+                <div class="row mt32 mb32">
+                    <div class="col-3">
+                        <strong>Periode:</strong>
+                        <p t-field="doc.date_from"/> - <span t-field="doc.date_to"/>
+                    </div>
+                </div>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Nama Paket</th>
+                            <th>Harga</th>
+                            <th>Upload Speed</th>
+                            <th>Download Speed</th>
+                            <th>Jumlah Pelanggan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="packages" t-as="package">
+                            <tr>
+                                <td><span t-field="package.name"/></td>
+                                <td><span t-field="package.price" t-options='{"widget": "monetary"}'/></td>
+                                <td><span t-field="package.speed_up"/> Mbps</td>
+                                <td><span t-field="package.speed_down"/> Mbps</td>
+                                <td><span t-field="package.customer_count"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_package">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="dkt_isp_billing.report_package_document"/>
+            </t>
+        </t>
+    </template>
+
+    <!-- Financial Report Template -->
+    <template id="report_financial_document">
+        <t t-call="web.external_layout">
+            <div class="page">
+                <h2>Laporan Keuangan</h2>
+                <div class="row mt32 mb32">
+                    <div class="col-3">
+                        <strong>Periode:</strong>
+                        <p t-field="doc.date_from"/> - <span t-field="doc.date_to"/>
+                    </div>
+                </div>
+                
+                <!-- Pendapatan Berlangganan -->
+                <h4>Pendapatan Berlangganan</h4>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>No. Invoice</th>
+                            <th>Pelanggan</th>
+                            <th>Paket</th>
+                            <th>Jumlah</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="subscriptions" t-as="sub">
+                            <tr>
+                                <td><span t-field="sub.date"/></td>
+                                <td><span t-field="sub.name"/></td>
+                                <td><span t-field="sub.partner_id.name"/></td>
+                                <td><span t-field="sub.template_id.name"/></td>
+                                <td><span t-field="sub.amount_total" t-options='{"widget": "monetary"}'/></td>
+                                <td><span t-field="sub.state"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" class="text-right"><strong>Total Pendapatan Berlangganan</strong></td>
+                            <td><strong t-esc="total_subscription" t-options='{"widget": "monetary"}'/></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <!-- Pendapatan Instalasi -->
+                <h4>Pendapatan Instalasi</h4>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>No. Invoice</th>
+                            <th>Pelanggan</th>
+                            <th>Jenis Instalasi</th>
+                            <th>Jumlah</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="installations" t-as="inst">
+                            <tr>
+                                <td><span t-field="inst.date"/></td>
+                                <td><span t-field="inst.name"/></td>
+                                <td><span t-field="inst.customer_id.name"/></td>
+                                <td><span t-field="inst.installation_type_id.name"/></td>
+                                <td><span t-field="inst.amount" t-options='{"widget": "monetary"}'/></td>
+                                <td><span t-field="inst.state"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" class="text-right"><strong>Total Pendapatan Instalasi</strong></td>
+                            <td><strong t-esc="total_installation" t-options='{"widget": "monetary"}'/></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <!-- Total Keseluruhan -->
+                <div class="row justify-content-end">
+                    <div class="col-4">
+                        <table class="table table-sm">
+                            <tr class="border-black">
+                                <td><strong>Total Pendapatan</strong></td>
+                                <td class="text-right">
+                                    <strong t-esc="total_subscription + total_installation" t-options='{"widget": "monetary"}'/>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_financial">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="dkt_isp_billing.report_financial_document"/>
+            </t>
+        </t>
+    </template>
+
+    <!-- Profit Loss Report Template -->
+    <template id="report_profit_loss_document">
+        <t t-call="web.external_layout">
+            <div class="page">
+                <h2>Laporan Laba Rugi</h2>
+                <div class="row mt32 mb32">
+                    <div class="col-3">
+                        <strong>Periode:</strong>
+                        <p t-field="doc.date_from"/> - <span t-field="doc.date_to"/>
+                    </div>
+                </div>
+
+                <!-- Pendapatan -->
+                <h4>Pendapatan</h4>
+                <table class="table table-sm">
+                    <tr>
+                        <td>Pendapatan Berlangganan</td>
+                        <td class="text-right"><span t-esc="total_subscription" t-options='{"widget": "monetary"}'/></td>
+                    </tr>
+                    <tr>
+                        <td>Pendapatan Instalasi</td>
+                        <td class="text-right"><span t-esc="total_installation" t-options='{"widget": "monetary"}'/></td>
+                    </tr>
+                    <tr class="border-black">
+                        <td><strong>Total Pendapatan</strong></td>
+                        <td class="text-right">
+                            <strong t-esc="total_revenue" t-options='{"widget": "monetary"}'/>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Biaya -->
+                <h4>Biaya Operasional</h4>
+                <table class="table table-sm">
+                    <tr>
+                        <td>Biaya Perangkat</td>
+                        <td class="text-right"><span t-esc="total_device_cost" t-options='{"widget": "monetary"}'/></td>
+                    </tr>
+                    <tr>
+                        <td>Biaya Maintenance</td>
+                        <td class="text-right"><span t-esc="total_maintenance" t-options='{"widget": "monetary"}'/></td>
+                    </tr>
+                    <tr class="border-black">
+                        <td><strong>Total Biaya</strong></td>
+                        <td class="text-right">
+                            <strong t-esc="total_cost" t-options='{"widget": "monetary"}'/>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Laba/Rugi -->
+                <div class="row justify-content-end">
+                    <div class="col-4">
+                        <table class="table table-sm">
+                            <tr class="border-black">
+                                <td><strong>Laba/Rugi Bersih</strong></td>
+                                <td class="text-right">
+                                    <strong t-esc="total_revenue - total_cost" t-options='{"widget": "monetary"}'/>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_profit_loss">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="dkt_isp_billing.report_profit_loss_document"/>
+            </t>
+        </t>
+    </template>
+</odoo> 

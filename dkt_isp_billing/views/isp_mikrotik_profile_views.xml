@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_isp_mikrotik_profile_tree" model="ir.ui.view">
+        <field name="name">isp.mikrotik.profile.tree</field>
+        <field name="model">isp.mikrotik.profile</field>
+        <field name="arch" type="xml">
+            <tree decoration-info="mikrotik_id != False">
+                <header>
+                    <button name="action_sync_from_mikrotik" 
+                            string="Sinkronkan dari Mikrotik" 
+                            type="object"
+                            class="btn-primary"
+                            display="always"/>
+                </header>
+                <field name="name"/>
+                <field name="rate_limit"/>
+                <field name="local_address"/>
+                <field name="remote_address"/>
+                <field name="package_count"/>
+                <field name="mikrotik_id"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_mikrotik_profile_form" model="ir.ui.view">
+        <field name="name">isp.mikrotik.profile.form</field>
+        <field name="model">isp.mikrotik.profile</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_create_in_mikrotik" 
+                            string="Buat di Mikrotik" 
+                            type="object"
+                            class="oe_highlight"
+                            invisible="mikrotik_id"/>
+                    <button name="action_sync_from_mikrotik" 
+                            string="Sinkronkan dari Mikrotik" 
+                            type="object"
+                            class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nama Profile"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="rate_limit"/>
+                            <field name="local_address"/>
+                            <field name="remote_address"/>
+                        </group>
+                        <group>
+                            <field name="parent_queue"/>
+                            <field name="only_one"/>
+                            <field name="active"/>
+                            <field name="mikrotik_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Paket Terkait">
+                            <field name="package_ids" readonly="1">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="price"/>
+                                    <field name="customer_count"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_isp_mikrotik_profile" model="ir.actions.act_window">
+        <field name="name">PPPoE Profile</field>
+        <field name="res_model">isp.mikrotik.profile</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada profile PPPoE
+            </p>
+            <p>
+                Klik tombol 'Sinkronkan dari Mikrotik' untuk mengambil profile yang ada di router,
+                atau buat profile baru yang akan otomatis dibuat di router Mikrotik.
+            </p>
+        </field>
+    </record>
+
+    <!-- Action Server untuk Sinkronisasi -->
+    <record id="action_sync_pppoe_profiles" model="ir.actions.server">
+        <field name="name">Sinkronkan dari Mikrotik</field>
+        <field name="model_id" ref="model_isp_mikrotik_profile"/>
+        <field name="binding_model_id" ref="model_isp_mikrotik_profile"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code">
+action = model.action_sync_from_mikrotik()
+        </field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem id="menu_isp_mikrotik_profile"
+              name="PPPoE Profile"
+              parent="menu_isp_configuration"
+              action="action_isp_mikrotik_profile"
+              sequence="20"/>
+</odoo> 

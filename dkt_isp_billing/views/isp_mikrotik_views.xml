@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_isp_mikrotik_config_tree" model="ir.ui.view">
+        <field name="name">isp.mikrotik.config.tree</field>
+        <field name="model">isp.mikrotik.config</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="host"/>
+                <field name="port" options='{"type": "number", "format": false}' widget="integer"/>
+                <field name="username"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_mikrotik_config_form" model="ir.ui.view">
+        <field name="name">isp.mikrotik.config.form</field>
+        <field name="model">isp.mikrotik.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="test_connection" 
+                            string="Test Koneksi" 
+                            type="object" 
+                            class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nama Konfigurasi"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="host"/>
+                            <field name="port" options='{"type": "number", "format": false}' widget="integer"/>
+                        </group>
+                        <group>
+                            <field name="username"/>
+                            <field name="password" password="True"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_isp_mikrotik_config" model="ir.actions.act_window">
+        <field name="name">Konfigurasi Mikrotik</field>
+        <field name="res_model">isp.mikrotik.config</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo> 

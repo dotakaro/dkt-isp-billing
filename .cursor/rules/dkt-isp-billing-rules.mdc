@@ -1,0 +1,136 @@
+---
+description: rules standar pengembangan isp billing
+globs: 
+alwaysApply: false
+---
+<making_code_changes>
+Ketika membuat perubahan kode, JANGAN output kode ke USER kecuali diminta. Gunakan tools edit kode dan ikuti instruksi ini dengan hati-hati:
+1. Tambahkan semua import statements, dependencies, dan endpoints yang diperlukan agar kode bisa langsung dijalankan.
+2. Jika membuat codebase dari awal, buat file dependency management (misal requirements.txt) dengan versi package dan README yang membantu.
+3. Jika membuat web app dari awal, berikan UI yang modern dan indah dengan praktik UX terbaik.
+4. JANGAN generate hash yang sangat panjang atau kode non-tekstual seperti binary.
+5. Kecuali menambahkan edit kecil atau membuat file baru, HARUS membaca konten atau bagian yang akan diedit sebelum mengedit.
+6. Jika ada error linter, perbaiki jika jelas caranya (atau bisa dengan mudah dicari). Jangan tebak-tebak. JANGAN loop lebih dari 3 kali untuk memperbaiki error linter pada file yang sama.
+7. Jika sudah menyarankan code_edit yang masuk akal tapi model apply tidak mengikuti, coba apply ulang editnya.
+
+**Khusus untuk Odoo 17:**
+
+1. View XML:
+   - JANGAN gunakan atribut `attrs` dan `states` dalam view XML karena sudah tidak digunakan lagi.
+   - Ganti `attrs="{'invisible': [('field', '=', value)]}"` dengan `invisible="field"` 
+   - Untuk kondisi yang lebih kompleks, gunakan domain.
+   - Gunakan `<field widget="X"/>` dengan hati-hati, pastikan widget tersedia di Odoo 17.
+   - Untuk field numerik yang tidak boleh format currency, gunakan `options='{"type": "number", "format": false}'`
+
+2. Model Python:
+   - Gunakan sintaks baru untuk modifier field:
+     * `readonly="1"` untuk field read-only
+     * `required="1"` untuk field wajib
+     * `invisible="1"` untuk menyembunyikan field
+   - Selalu gunakan `tracking=True` untuk field yang perlu dilacak perubahannya.
+   - Gunakan `mail.thread` dan `mail.activity.mixin` untuk model yang membutuhkan fitur chatter.
+   - Hindari penggunaan parameter yang tidak valid seperti `monetary=False` pada field Integer.
+   - Untuk field One2many, selalu tentukan inverse_name di model terkait.
+   - Gunakan `api.depends()` untuk compute fields dengan dependencies yang jelas.
+
+3. Security:
+   - Pastikan semua model memiliki akses di `ir.model.access.csv`
+   - Jangan gunakan external ID yang tidak ada (misal untuk model dari modul lain)
+   - Untuk model konfigurasi, batasi akses create/write/unlink ke group System
+   - Selalu tambahkan record rule untuk membatasi akses data
+
+4. Integrasi Eksternal:
+   - Selalu gunakan try-except untuk menangani error dari API eksternal
+   - Tambahkan logging yang jelas untuk debugging
+   - Gunakan connection pooling untuk koneksi database/API yang persisten
+   - Selalu tutup koneksi setelah selesai (gunakan `finally`)
+
+5. Business Logic:
+   - Gunakan `@api.constrains` untuk validasi kompleks
+   - Implementasikan method `name_get()` untuk tampilan yang lebih baik
+   - Gunakan `@api.model` untuk method yang tidak memerlukan recordset
+   - Implementasikan `_name_search()` untuk pencarian custom
+
+6. Performance:
+   - Hindari perulangan yang tidak perlu dalam compute fields
+   - Gunakan `prefetch_related()` untuk optimasi query related fields
+   - Batasi jumlah records yang diproses dalam satu waktu
+   - Gunakan `sudo()` dengan hati-hati dan hanya ketika diperlukan
+
+7. Upgrade Compatibility:
+   - Selalu sediakan method migrasi jika mengubah struktur data
+   - Backup data sensitif sebelum melakukan perubahan besar
+   - Test upgrade dari versi sebelumnya
+   - Dokumentasikan perubahan breaking changes
+
+8. Best Practices:
+   - Gunakan nama yang deskriptif untuk field dan method
+   - Tambahkan docstring yang jelas untuk setiap method
+   - Kelompokkan field yang berhubungan dalam view
+   - Gunakan translation untuk semua string yang visible ke user
+   - Implementasikan soft-delete dengan field `active` daripada menghapus record
+
+9. Pengelolaan Menu dan Actions:
+   - JANGAN mendefinisikan menu di file view yang sama dengan form/tree view
+   - Semua definisi menu HARUS ditempatkan di `views/menu_views.xml`
+   - Urutan loading menu di `__manifest__.py` harus diletakkan paling akhir
+   - Struktur menu harus mengikuti hierarki:
+     ```xml
+     <!-- Root Menu -->
+     <menuitem id="menu_root"
+               name="Root Name"
+               web_icon="module,icon_path"/>
+     
+     <!-- Level 1 Menus -->
+     <menuitem id="menu_main_category"
+               name="Category Name"
+               parent="menu_root"
+               sequence="10"/>
+     
+     <!-- Level 2 Menus (with action) -->
+     <menuitem id="menu_item"
+               name="Item Name"
+               parent="menu_main_category"
+               action="action_name"
+               sequence="10"/>
+     ```
+   - Gunakan sequence untuk mengatur urutan menu (kelipatan 10)
+   - Nama menu harus deskriptif dan konsisten
+   - Selalu definisikan action window sebelum menuitem yang menggunakannya
+   - Untuk modul yang extend modul lain, gunakan external ID yang sudah ada untuk parent menu
+
+10. Organisasi File Views:
+    - Setiap model utama harus memiliki file view terpisah
+    - Nama file view harus mengikuti pola: `views/model_name_views.xml`
+    - Urutan dalam file view:
+      1. Window Actions
+      2. Tree Views
+      3. Form Views
+      4. Search Views
+      5. Calendar/Kanban/Graph Views (jika ada)
+    - JANGAN mencampur definisi menu dengan view
+    - Gunakan groups untuk mengelompokkan field yang berhubungan
+    - Konsisten dalam penggunaan string/label
+
+11. Manifest dan Loading Order:
+    ```python
+    'data': [
+        # Security (Load First)
+        'security/security.xml',
+        'security/ir.model.access.csv',
+        
+        # Data
+        'data/ir_sequence_data.xml',
+        'data/cron_jobs.xml',
+        'data/template_data.xml',
+        
+        # Views (Model Specific)
+        'views/model1_views.xml',
+        'views/model2_views.xml',
+        'views/model3_views.xml',
+        
+        # Menu (Load Last)
+        'views/menu_views.xml',
+    ]
+    ```
+</making_code_changes>

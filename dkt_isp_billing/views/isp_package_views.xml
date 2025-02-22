@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Action -->
+    <record id="action_isp_package" model="ir.actions.act_window">
+        <field name="name">Paket</field>
+        <field name="res_model">isp.package</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_isp_package_tree" model="ir.ui.view">
+        <field name="name">isp.package.tree</field>
+        <field name="model">isp.package</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="profile_id"/>
+                <field name="bandwidth_up"/>
+                <field name="bandwidth_down"/>
+                <field name="price"/>
+                <field name="customer_count"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_package_form" model="ir.ui.view">
+        <field name="name">isp.package.form</field>
+        <field name="model">isp.package</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nama Paket"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="profile_id"/>
+                            <field name="price"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="bandwidth_up" readonly="1"/>
+                            <field name="bandwidth_down" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Deskripsi">
+                            <field name="description"/>
+                        </page>
+                        <page string="Pelanggan">
+                            <field name="customer_ids" readonly="1">
+                                <tree>
+                                    <field name="customer_id"/>
+                                    <field name="name"/>
+                                    <field name="state"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_isp_package_search" model="ir.ui.view">
+        <field name="name">isp.package.search</field>
+        <field name="model">isp.package</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="profile_id"/>
+                <filter string="Aktif" name="active" domain="[('active','=',True)]"/>
+                <filter string="Arsip" name="inactive" domain="[('active','=',False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Profile" name="profile" context="{'group_by':'profile_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo> 

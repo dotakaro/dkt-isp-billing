@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Template Aktivasi -->
+        <record id="whatsapp_template_activation" model="whatsapp.template">
+            <field name="name">ISP - Aktivasi Layanan</field>
+            <field name="template_name">isp_activation</field>
+            <field name="body">Halo {{customer_name}},
+
+Selamat! Layanan internet paket {{package_name}} Anda telah aktif.
+
+Terima kasih telah berlangganan dengan kami.</field>
+            <field name="status">approved</field>
+        </record>
+
+        <!-- Template Isolasi -->
+        <record id="whatsapp_template_isolation" model="whatsapp.template">
+            <field name="name">ISP - Isolasi Layanan</field>
+            <field name="template_name">isp_isolation</field>
+            <field name="body">Halo {{customer_name}},
+
+Mohon maaf, layanan internet Anda telah diisolir karena tunggakan sebesar Rp {{amount}}.
+
+Silakan segera lakukan pembayaran untuk mengaktifkan kembali layanan Anda.</field>
+            <field name="status">approved</field>
+        </record>
+
+        <!-- Template Reminder Jatuh Tempo -->
+        <record id="whatsapp_template_due_reminder" model="whatsapp.template">
+            <field name="name">ISP - Reminder Jatuh Tempo</field>
+            <field name="template_name">isp_due_reminder</field>
+            <field name="body">Halo {{customer_name}},
+
+Ini adalah pengingat bahwa tagihan internet Anda sebesar Rp {{amount}} akan jatuh tempo pada {{due_date}}.
+
+Mohon segera lakukan pembayaran untuk menghindari isolir layanan.</field>
+            <field name="status">approved</field>
+        </record>
+
+        <!-- Template Reminder Telat Bayar -->
+        <record id="whatsapp_template_overdue_reminder" model="whatsapp.template">
+            <field name="name">ISP - Reminder Telat Bayar</field>
+            <field name="template_name">isp_overdue_reminder</field>
+            <field name="body">Halo {{customer_name}},
+
+Tagihan internet Anda sebesar Rp {{amount}} telah melewati jatuh tempo ({{due_date}}).
+
+Mohon segera lakukan pembayaran untuk menghindari isolir layanan.</field>
+            <field name="status">approved</field>
+        </record>
+    </data>
+</odoo> 

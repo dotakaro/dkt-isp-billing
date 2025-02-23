@@ -21,6 +21,7 @@ class ISPCustomer(models.Model):
     cpe_ids = fields.One2many('isp.cpe', 'customer_id', string='CPE')
     installation_fee_ids = fields.One2many('isp.installation.fee', 'customer_id', string='Biaya Instalasi')
     subscription_ids = fields.One2many('isp.subscription', 'customer_id', string='Subscription')
+    invoice_ids = fields.One2many('account.move', 'partner_id', string='Invoice', domain=[('move_type', '=', 'out_invoice')])
     
     state = fields.Selection([
         ('draft', 'Draft'),
@@ -37,6 +38,14 @@ class ISPCustomer(models.Model):
     active_cpe_count = fields.Integer(compute='_compute_cpe_stats', string='CPE Aktif')
     subscription_count = fields.Integer(compute='_compute_subscription_stats', string='Total Subscription')
     active_subscription_count = fields.Integer(compute='_compute_subscription_stats', string='Subscription Aktif')
+    
+    # Computed fields untuk invoice
+    invoice_count = fields.Integer(compute='_compute_invoice_stats', string='Total Invoice')
+    invoice_draft_count = fields.Integer(compute='_compute_invoice_stats', string='Invoice Draft')
+    invoice_posted_count = fields.Integer(compute='_compute_invoice_stats', string='Invoice Posted')
+    invoice_paid_count = fields.Integer(compute='_compute_invoice_stats', string='Invoice Terbayar')
+    invoice_overdue_count = fields.Integer(compute='_compute_invoice_stats', string='Invoice Menunggak')
+    total_unpaid_amount = fields.Float(compute='_compute_invoice_stats', string='Total Belum Terbayar')
     
     # Status detail untuk ditampilkan di form
     cpe_status_details = fields.Text(compute='_compute_status_details', string='Status Detail')
@@ -59,6 +68,16 @@ class ISPCustomer(models.Model):
         for record in self:
             record.subscription_count = len(record.subscription_ids)
             record.active_subscription_count = len(record.subscription_ids.filtered(lambda s: s.state == 'open'))
+    
+    @api.depends('invoice_ids', 'invoice_ids.state', 'invoice_ids.payment_state', 'invoice_ids.amount_residual')
+    def _compute_invoice_stats(self):
+        for record in self:
+            record.invoice_count = len(record.invoice_ids)
+            record.invoice_draft_count = len(record.invoice_ids.filtered(lambda i: i.state == 'draft'))
+            record.invoice_posted_count = len(record.invoice_ids.filtered(lambda i: i.state == 'posted'))
+            record.invoice_paid_count = len(record.invoice_ids.filtered(lambda i: i.payment_state == 'paid'))
+            record.invoice_overdue_count = len(record.invoice_ids.filtered(lambda i: i.state == 'posted' and i.payment_state != 'paid' and i.invoice_date_due < fields.Date.today()))
+            record.total_unpaid_amount = sum(record.invoice_ids.filtered(lambda i: i.state == 'posted' and i.payment_state != 'paid').mapped('amount_residual'))
     
     @api.depends('cpe_ids', 'cpe_ids.state', 'cpe_ids.subscription_ids', 'cpe_ids.subscription_ids.state')
     def _compute_status_details(self):
@@ -95,6 +114,17 @@ class ISPCustomer(models.Model):
             'view_mode': 'tree,form',
             'domain': [('customer_id', '=', self.id)],
             'context': {'default_customer_id': self.id}
+        }
+
+    def action_view_invoices(self):
+        self.ensure_one()
+        return {
+            'name': 'Invoice',
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'view_mode': 'tree,form',
+            'domain': [('partner_id', '=', self.partner_id.id), ('move_type', '=', 'out_invoice')],
+            'context': {'default_partner_id': self.partner_id.id, 'default_move_type': 'out_invoice'}
         }
 
     def action_activate(self):

@@ -60,6 +60,17 @@
                                 <span class="o_stat_text">CPE</span>
                             </div>
                         </button>
+                        <button name="action_view_invoices" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-file-text">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value">
+                                    <field name="invoice_draft_count"/> / <field name="invoice_count"/>
+                                </span>
+                                <span class="o_stat_text">Invoice</span>
+                            </div>
+                        </button>
                     </div>
                     <div class="oe_title">
                         <h1>

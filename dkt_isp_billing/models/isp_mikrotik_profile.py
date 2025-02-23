@@ -65,6 +65,9 @@ class ISPMikrotikProfile(models.Model):
             }
         except Exception as e:
             raise ValidationError(f'Gagal sinkronisasi profile dari Mikrotik: {str(e)}')
+        finally:
+            if api and hasattr(api, 'connection_pool'):
+                api.connection_pool.disconnect()
 
     def action_create_in_mikrotik(self):
         """Membuat profile baru di Mikrotik Router"""
@@ -91,10 +94,11 @@ class ISPMikrotikProfile(models.Model):
             if self.parent_queue:
                 profile_data['parent-queue'] = self.parent_queue
             if self.only_one:
-                profile_data['only-one'] = self.only_one
+                profile_data['only-one'] = 'yes'
                 
             result = profile_api.add(**profile_data)
-            self.mikrotik_id = result['ret']
+            if isinstance(result, list) and len(result) > 0:
+                self.mikrotik_id = result[0].get('.id')
             
             return {
                 'type': 'ir.actions.client',
@@ -106,4 +110,7 @@ class ISPMikrotikProfile(models.Model):
                 }
             }
         except Exception as e:
-            raise ValidationError(f'Gagal membuat profile di Mikrotik: {str(e)}') 
+            raise ValidationError(f'Gagal membuat profile di Mikrotik: {str(e)}')
+        finally:
+            if api and hasattr(api, 'connection_pool'):
+                api.connection_pool.disconnect() 

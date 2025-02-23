@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="PPPoEMonitor">
+        <div class="o_pppoe_monitor">
+            <div class="alert alert-info" role="alert">
+                <i class="fa fa-info-circle"/> Monitoring PPPoE aktif. Data akan diupdate setiap detik.
+            </div>
+            
+            <div class="o_pppoe_stats">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="o_stat_box">
+                            <div class="o_stat_header">Upload Rate</div>
+                            <div class="o_stat_value">
+                                <t t-esc="state.current_upload_rate"/>
+                            </div>
+                            <div class="o_stat_info">
+                                Total: <t t-esc="state.upload_usage"/> MB
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="o_stat_box">
+                            <div class="o_stat_header">Download Rate</div>
+                            <div class="o_stat_value">
+                                <t t-esc="state.current_download_rate"/>
+                            </div>
+                            <div class="o_stat_info">
+                                Total: <t t-esc="state.download_usage"/> MB
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt16">
+                    <div class="col-md-4">
+                        <div class="o_stat_box">
+                            <div class="o_stat_header">Status</div>
+                            <div class="o_stat_value">
+                                <span t-attf-class="badge badge-{{state.pppoe_status == 'connected' ? 'success' : 'danger'}}">
+                                    <t t-esc="state.pppoe_status"/>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="o_stat_box">
+                            <div class="o_stat_header">Uptime</div>
+                            <div class="o_stat_value">
+                                <t t-esc="state.pppoe_uptime"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="o_stat_box">
+                            <div class="o_stat_header">IP Address</div>
+                            <div class="o_stat_value">
+                                <t t-esc="state.pppoe_address"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates> 

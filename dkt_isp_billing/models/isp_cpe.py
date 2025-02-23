@@ -17,8 +17,13 @@ class ISPCPE(models.Model):
     ip_address = fields.Char('IP Address', tracking=True)
     outdoor_unit = fields.Char('Outdoor Unit')
     router = fields.Char('Router')
-    pppoe_username = fields.Char('PPPoE Username', required=True, tracking=True)
-    pppoe_password = fields.Char('PPPoE Password', required=True, tracking=True)
+    connection_type = fields.Selection([
+        ('pppoe', 'PPPoE'),
+        ('static', 'Static IP'),
+        ('dhcp', 'DHCP')
+    ], string='Tipe Koneksi', default='pppoe', required=True, tracking=True)
+    pppoe_username = fields.Char('PPPoE Username', tracking=True)
+    pppoe_password = fields.Char('PPPoE Password', tracking=True)
     ownership = fields.Selection([
         ('customer', 'Milik Pelanggan'),
         ('company', 'Milik Perusahaan')
@@ -38,9 +43,31 @@ class ISPCPE(models.Model):
                                     compute='_compute_subscription', store=True)
     subscription_state = fields.Selection(related='subscription_id.state', string='Status Subscription')
     
+    # Fields untuk monitoring PPPoE
+    pppoe_status = fields.Selection([
+        ('connected', 'Connected'),
+        ('disconnected', 'Disconnected'),
+        ('unknown', 'Unknown')
+    ], string='Status PPPoE', default='unknown', tracking=True)
+    pppoe_uptime = fields.Char('PPPoE Uptime', tracking=True)
+    pppoe_last_seen = fields.Datetime('Last Seen', tracking=True)
+    pppoe_caller_id = fields.Char('Caller ID', tracking=True, help='MAC Address perangkat yang terkoneksi')
+    pppoe_address = fields.Char('PPPoE IP', tracking=True, help='IP Address yang diberikan ke client')
+    pppoe_session_id = fields.Char('Session ID', tracking=True)
+    upload_usage = fields.Float('Upload (MB)', tracking=True)
+    download_usage = fields.Float('Download (MB)', tracking=True)
+    upload_rate = fields.Char('Upload Rate', tracking=True, compute='_compute_rates')
+    download_rate = fields.Char('Download Rate', tracking=True, compute='_compute_rates')
+    signal_strength = fields.Char('Signal Strength', tracking=True)
+    
+    # Field untuk websocket monitoring
+    is_monitoring = fields.Boolean('Is Monitoring', default=False)
+    current_upload_rate = fields.Char('Current Upload Rate', readonly=True)
+    current_download_rate = fields.Char('Current Download Rate', readonly=True)
+    
     _sql_constraints = [
         ('mac_address_uniq', 'unique(mac_address)', 'MAC Address harus unik!'),
-        ('pppoe_username_uniq', 'unique(pppoe_username)', 'PPPoE Username harus unik!'),
+        ('pppoe_username_uniq', 'unique(pppoe_username,connection_type)', 'PPPoE Username harus unik!'),
     ]
 
     @api.depends('subscription_ids', 'subscription_ids.state')
@@ -104,6 +131,9 @@ class ISPCPE(models.Model):
         Returns: (exists, user_id, error, secret_data)
         """
         self.ensure_one()
+        if self.connection_type != 'pppoe':
+            return False, False, None, None
+            
         if not self.pppoe_username:
             return False, False, 'PPPoE Username tidak boleh kosong!', None
             
@@ -133,6 +163,9 @@ class ISPCPE(models.Model):
         Returns: (success, message)
         """
         self.ensure_one()
+        if self.connection_type != 'pppoe':
+            return True, 'Bukan koneksi PPPoE'
+            
         if not self.pppoe_username or not self.pppoe_password:
             return False, 'PPPoE Username dan Password harus diisi!'
             
@@ -171,67 +204,82 @@ class ISPCPE(models.Model):
         if not self.subscription_id:
             raise ValidationError('CPE harus memiliki subscription terlebih dahulu!')
             
-        # Cek apakah sudah ada secret di Mikrotik
-        exists, user_id, error, secret_data = self._check_mikrotik_secret()
-        if error:
-            raise ValidationError(error)
-            
-        if exists:
-            # Coba adopsi secret yang ada
-            success, message = self.adopt_mikrotik_secret()
-            if not success:
-                raise ValidationError(message)
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Sukses',
-                    'message': message,
-                    'type': 'success',
+        if self.connection_type == 'pppoe':
+            # Cek apakah sudah ada secret di Mikrotik
+            exists, user_id, error, secret_data = self._check_mikrotik_secret()
+            if error:
+                raise ValidationError(error)
+                
+            if exists:
+                # Coba adopsi secret yang ada
+                success, message = self.adopt_mikrotik_secret()
+                if not success:
+                    raise ValidationError(message)
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Sukses',
+                        'message': message,
+                        'type': 'success',
+                    }
                 }
-            }
-            
-        # Jika secret belum ada, buat baru di Mikrotik
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-        if not mikrotik:
-            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
-            
-        api = mikrotik.get_connection()
-        if not api:
-            raise ValidationError('Gagal terhubung ke Mikrotik!')
-            
-        try:
-            secret_api = api.get_resource('/ppp/secret')
-            secret_data = {
-                'name': self.pppoe_username,
-                'password': self.pppoe_password,
-                'service': 'pppoe',
-                'profile': self.subscription_id.package_id.profile_id.name,
-                'comment': f'Customer: {self.customer_id.name} ({self.customer_id.customer_id})',
-                'disabled': 'yes'  # Default disabled, akan di-enable oleh subscription
-            }
-            
-            secret_api.add(**secret_data)
+                
+            # Jika secret belum ada, buat baru di Mikrotik
+            mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+            if not mikrotik:
+                raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+                
+            api = mikrotik.get_connection()
+            if not api:
+                raise ValidationError('Gagal terhubung ke Mikrotik!')
+                
+            try:
+                secret_api = api.get_resource('/ppp/secret')
+                secret_data = {
+                    'name': self.pppoe_username,
+                    'password': self.pppoe_password,
+                    'service': 'pppoe',
+                    'profile': self.subscription_id.package_id.profile_id.name,
+                    'comment': f'Customer: {self.customer_id.name} ({self.customer_id.customer_id})',
+                    'disabled': 'yes'  # Default disabled, akan di-enable oleh subscription
+                }
+                
+                secret_api.add(**secret_data)
+                self.write({'state': 'open'})
+                
+                # Aktifkan subscription jika masih draft
+                if self.subscription_id.state == 'draft':
+                    self.subscription_id.action_open()
+                    
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Sukses',
+                        'message': 'CPE berhasil diaktifkan dengan membuat secret baru',
+                        'type': 'success',
+                    }
+                }
+            except Exception as e:
+                raise ValidationError(f'Gagal mengaktifkan CPE di Mikrotik: {str(e)}')
+            finally:
+                if api and hasattr(api, 'connection_pool'):
+                    api.connection_pool.disconnect()
+        else:
+            # Untuk koneksi non-PPPoE, langsung aktifkan
             self.write({'state': 'open'})
-            
-            # Aktifkan subscription jika masih draft
             if self.subscription_id.state == 'draft':
                 self.subscription_id.action_open()
-                
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
                 'params': {
                     'title': 'Sukses',
-                    'message': 'CPE berhasil diaktifkan dengan membuat secret baru',
+                    'message': 'CPE berhasil diaktifkan',
                     'type': 'success',
                 }
             }
-        except Exception as e:
-            raise ValidationError(f'Gagal mengaktifkan CPE di Mikrotik: {str(e)}')
-        finally:
-            if api and hasattr(api, 'connection_pool'):
-                api.connection_pool.disconnect()
     
     def action_isolate(self):
         """Isolir CPE"""
@@ -311,4 +359,206 @@ class ISPCPE(models.Model):
                 'default_customer_id': self.customer_id.id,
                 'default_cpe_id': self.id
             }
-        } 
+        }
+
+    def _get_pppoe_active(self, api):
+        """
+        Mendapatkan informasi PPPoE active dari Mikrotik
+        Returns: (active_data, error)
+        """
+        self.ensure_one()
+        try:
+            active_api = api.get_resource('/ppp/active')
+            # Cari berdasarkan username yang sesuai
+            active = active_api.get(name=self.pppoe_username)
+            if active:
+                return active[0], None
+                
+            # Jika tidak ditemukan dengan username exact match, 
+            # coba cari dengan contains untuk menangani kasus username dengan format berbeda
+            all_active = active_api.get()
+            for conn in all_active:
+                if self.pppoe_username.lower() in conn.get('name', '').lower():
+                    return conn, None
+                    
+            return None, None
+        except Exception as e:
+            _logger.error(f'Error getting PPPoE active status: {str(e)}')
+            return None, str(e)
+            
+    def _get_pppoe_secret(self, api):
+        """
+        Mendapatkan informasi PPPoE secret dari Mikrotik
+        Returns: (secret_data, error)
+        """
+        self.ensure_one()
+        try:
+            secret_api = api.get_resource('/ppp/secret')
+            secret = secret_api.get(name=self.pppoe_username)
+            if secret:
+                return secret[0], None
+            return None, None
+        except Exception as e:
+            return None, str(e)
+            
+    def _bytes_to_mb(self, bytes_val):
+        """Convert bytes to MB"""
+        try:
+            return float(bytes_val) / (1024 * 1024)
+        except:
+            return 0.0
+            
+    def update_pppoe_status(self):
+        """Update status PPPoE dari Mikrotik"""
+        self.ensure_one()
+        
+        if not self.pppoe_username:
+            self.write({
+                'pppoe_status': 'unknown',
+                'pppoe_uptime': False,
+                'pppoe_last_seen': False,
+                'pppoe_caller_id': False,
+                'pppoe_address': False,
+                'pppoe_session_id': False,
+                'upload_usage': 0,
+                'download_usage': 0
+            })
+            return
+            
+        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        if not mikrotik:
+            return
+            
+        api = mikrotik.get_connection()
+        if not api:
+            return
+            
+        try:
+            # Cek PPPoE active
+            active_data, error = self._get_pppoe_active(api)
+            if error:
+                _logger.error(f'Error checking PPPoE status: {error}')
+                return
+                
+            if active_data:
+                # PPPoE sedang aktif
+                vals = {
+                    'pppoe_status': 'connected',
+                    'pppoe_uptime': active_data.get('uptime', ''),
+                    'pppoe_last_seen': fields.Datetime.now(),
+                    'pppoe_caller_id': active_data.get('caller-id', ''),
+                    'pppoe_address': active_data.get('address', ''),
+                    'pppoe_session_id': active_data.get('session-id', ''),
+                    'upload_usage': self._bytes_to_mb(active_data.get('bytes-out', '0')),
+                    'download_usage': self._bytes_to_mb(active_data.get('bytes-in', '0')),
+                }
+                
+                # Update IP Address jika berbeda
+                if active_data.get('address') and active_data['address'] != self.ip_address:
+                    vals['ip_address'] = active_data['address']
+                
+                # Update MAC Address jika berbeda
+                if active_data.get('caller-id') and active_data['caller-id'] != self.mac_address:
+                    vals['mac_address'] = active_data['caller-id']
+                
+                # Tambahkan log untuk debugging
+                _logger.info(f'PPPoE status for {self.pppoe_username}: {active_data}')
+            else:
+                # PPPoE tidak aktif, cek secret
+                secret_data, error = self._get_pppoe_secret(api)
+                if error:
+                    _logger.error(f'Error checking PPPoE secret: {error}')
+                    return
+                    
+                vals = {
+                    'pppoe_status': 'disconnected',
+                    'pppoe_uptime': False,
+                    'pppoe_caller_id': False,
+                    'pppoe_address': False,
+                    'pppoe_session_id': False,
+                    'upload_usage': 0,
+                    'download_usage': 0
+                }
+                
+                # Update last seen jika belum ada
+                if not self.pppoe_last_seen:
+                    vals['pppoe_last_seen'] = fields.Datetime.now()
+                    
+            self.write(vals)
+            
+        except Exception as e:
+            _logger.error(f'Error updating PPPoE status for {self.pppoe_username}: {str(e)}')
+            self.write({
+                'pppoe_status': 'unknown',
+                'pppoe_uptime': False,
+                'pppoe_caller_id': False,
+                'pppoe_address': False,
+                'pppoe_session_id': False,
+                'upload_usage': 0,
+                'download_usage': 0
+            })
+        finally:
+            if api and hasattr(api, 'connection_pool'):
+                api.connection_pool.disconnect()
+                
+    def action_check_pppoe(self):
+        """Action untuk mengecek status PPPoE"""
+        self.ensure_one()
+        self.update_pppoe_status()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Info',
+                'message': f'Status PPPoE: {self.pppoe_status}',
+                'type': 'info',
+            }
+        }
+
+    @api.model
+    def _cron_update_pppoe_status(self):
+        """
+        Cron job untuk update status PPPoE semua CPE yang aktif
+        """
+        # Ambil semua CPE yang statusnya open atau isolated
+        cpes = self.search([('state', 'in', ['open', 'isolated'])])
+        for cpe in cpes:
+            try:
+                cpe.update_pppoe_status()
+            except Exception as e:
+                _logger.error(f'Error updating PPPoE status for CPE {cpe.name}: {str(e)}')
+                continue 
+
+    def _compute_rates(self):
+        """Compute upload dan download rate"""
+        for record in self:
+            record.upload_rate = record.current_upload_rate or '0 kbps'
+            record.download_rate = record.current_download_rate or '0 kbps'
+            
+    def action_start_monitoring(self):
+        """Start monitoring realtime"""
+        self.ensure_one()
+        self.is_monitoring = True
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'pppoe_monitor',
+            'params': {
+                'cpe_id': self.id
+            }
+        }
+        
+    def action_stop_monitoring(self):
+        """Stop monitoring realtime"""
+        self.ensure_one()
+        self.is_monitoring = False
+        self.current_upload_rate = False
+        self.current_download_rate = False 
+
+    @api.constrains('connection_type', 'pppoe_username', 'pppoe_password')
+    def _check_pppoe_fields(self):
+        for record in self:
+            if record.connection_type == 'pppoe':
+                if not record.pppoe_username:
+                    raise ValidationError('PPPoE Username harus diisi untuk koneksi PPPoE!')
+                if not record.pppoe_password:
+                    raise ValidationError('PPPoE Password harus diisi untuk koneksi PPPoE!') 

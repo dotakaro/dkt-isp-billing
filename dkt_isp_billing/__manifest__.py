@@ -59,4 +59,14 @@
     'application': True,
     'auto_install': False,
     'license': 'LGPL-3',
+    'assets': {
+        'web.assets_backend': [
+            # JavaScript
+            'dkt_isp_billing/static/src/js/**/*',
+            # XML Templates
+            'dkt_isp_billing/static/src/xml/**/*',
+            # CSS
+            'dkt_isp_billing/static/src/css/**/*',
+        ],
+    },
 } 

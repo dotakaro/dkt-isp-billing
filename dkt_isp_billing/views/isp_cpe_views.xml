@@ -5,12 +5,16 @@
         <field name="name">isp.cpe.tree</field>
         <field name="model">isp.cpe</field>
         <field name="arch" type="xml">
-            <tree string="CPE" decoration-danger="state=='draft'" decoration-success="state=='active'">
+            <tree string="CPE" decoration-danger="state=='draft'" decoration-success="state=='open'" decoration-warning="state=='isolated'" decoration-muted="state=='terminated'">
                 <field name="name"/>
                 <field name="customer_id"/>
                 <field name="mac_address"/>
                 <field name="ip_address"/>
                 <field name="pppoe_username"/>
+                <field name="pppoe_status"/>
+                <field name="pppoe_uptime"/>
+                <field name="upload_usage" sum="Total Upload"/>
+                <field name="download_usage" sum="Total Download"/>
                 <field name="state"/>
             </tree>
         </field>
@@ -23,6 +27,24 @@
         <field name="arch" type="xml">
             <form string="CPE">
                 <header>
+                    <button name="action_activate" 
+                            string="Aktifkan" 
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'draft'"/>
+                    <button name="action_isolate" 
+                            string="Isolir" 
+                            type="object"
+                            invisible="state != 'open'"/>
+                    <button name="action_terminate" 
+                            string="Terminasi" 
+                            type="object"
+                            invisible="state not in ('open', 'isolated')"/>
+                    <button name="action_check_pppoe" 
+                            string="Check Status PPPoE" 
+                            type="object"
+                            class="btn-info"
+                            invisible="connection_type != 'pppoe'"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -36,15 +58,131 @@
                             <field name="customer_id"/>
                             <field name="mac_address"/>
                             <field name="ip_address"/>
+                            <field name="outdoor_unit"/>
+                            <field name="router"/>
+                            <field name="connection_type"/>
                         </group>
                         <group>
-                            <field name="pppoe_username"/>
-                            <field name="pppoe_password"/>
+                            <field name="pppoe_username" invisible="connection_type != 'pppoe'"/>
+                            <field name="pppoe_password" password="1" invisible="connection_type != 'pppoe'"/>
+                            <field name="ownership"/>
                         </group>
                     </group>
                     <notebook>
+                        <page string="Monitoring" name="monitoring" invisible="connection_type != 'pppoe'">
+                            <group>
+                                <group string="Status PPPoE">
+                                    <field name="pppoe_status" readonly="1"/>
+                                    <field name="pppoe_uptime" readonly="1"/>
+                                    <field name="pppoe_last_seen" readonly="1"/>
+                                    <field name="pppoe_caller_id" readonly="1"/>
+                                    <field name="pppoe_address" readonly="1"/>
+                                    <field name="pppoe_session_id" readonly="1"/>
+                                </group>
+                                <group string="Penggunaan">
+                                    <field name="upload_usage" readonly="1"/>
+                                    <field name="download_usage" readonly="1"/>
+                                    <field name="signal_strength" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Subscription" name="subscription">
+                            <field name="subscription_ids" context="{'default_customer_id': customer_id, 'default_cpe_id': id}">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="package_id"/>
+                                    <field name="date_start"/>
+                                    <field name="amount"/>
+                                    <field name="state"/>
+                                    <button name="action_open" 
+                                            string="Aktifkan" 
+                                            type="object"
+                                            icon="fa-play"
+                                            invisible="state != 'draft'"/>
+                                    <button name="action_isolate" 
+                                            string="Isolir" 
+                                            type="object"
+                                            icon="fa-pause"
+                                            invisible="state != 'open'"/>
+                                    <button name="action_terminate" 
+                                            string="Terminasi" 
+                                            type="object"
+                                            icon="fa-stop"
+                                            invisible="state not in ('open', 'isolated')"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Riwayat" name="history">
+                            <field name="history_ids">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="device_name"/>
+                                    <field name="replacement_reason"/>
+                                    <field name="technician_id"/>
+                                    <field name="cost"/>
+                                </tree>
+                            </field>
+                        </page>
                         <page string="Catatan" name="notes">
                             <field name="notes"/>
+                        </page>
+                        <page string="PPPoE" invisible="connection_type != 'pppoe'">
+                            <group>
+                                <group string="PPPoE Credentials">
+                                    <field name="pppoe_username"/>
+                                    <field name="pppoe_password" password="True"/>
+                                </group>
+                                <group string="PPPoE Status">
+                                    <field name="pppoe_status"/>
+                                    <field name="pppoe_uptime"/>
+                                    <field name="pppoe_last_seen"/>
+                                    <field name="pppoe_caller_id"/>
+                                    <field name="pppoe_address"/>
+                                    <field name="pppoe_session_id"/>
+                                </group>
+                            </group>
+                            <group string="Usage Statistics">
+                                <group>
+                                    <field name="upload_usage" widget="float_time"/>
+                                    <field name="download_usage" widget="float_time"/>
+                                    <field name="upload_rate"/>
+                                    <field name="download_rate"/>
+                                </group>
+                                <group>
+                                    <field name="signal_strength"/>
+                                    <field name="is_monitoring" invisible="1"/>
+                                    <button name="action_start_monitoring" 
+                                            string="Start Monitoring" 
+                                            type="object" 
+                                            class="oe_highlight"
+                                            invisible="is_monitoring"/>
+                                    <button name="action_stop_monitoring" 
+                                            string="Stop Monitoring" 
+                                            type="object"
+                                            class="oe_highlight" 
+                                            invisible="not is_monitoring"/>
+                                </group>
+                            </group>
+                            <div class="o_monitoring_container" invisible="not is_monitoring">
+                                <div class="alert alert-info" role="alert">
+                                    Monitoring aktif. Data akan diupdate setiap detik.
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="o_stat_info">
+                                            <span class="o_stat_text">Upload Rate</span>
+                                            <field name="current_upload_rate" readonly="1"/>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="o_stat_info">
+                                            <span class="o_stat_text">Download Rate</span>
+                                            <field name="current_download_rate" readonly="1"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </page>
                     </notebook>
                 </sheet>
@@ -69,10 +207,16 @@
                 <field name="pppoe_username"/>
                 <separator/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
-                <filter string="Aktif" name="active" domain="[('state', '=', 'active')]"/>
+                <filter string="Open" name="open" domain="[('state', '=', 'open')]"/>
+                <filter string="Terisolir" name="isolated" domain="[('state', '=', 'isolated')]"/>
+                <filter string="Terminasi" name="terminated" domain="[('state', '=', 'terminated')]"/>
+                <separator/>
+                <filter string="Connected" name="connected" domain="[('pppoe_status', '=', 'connected')]"/>
+                <filter string="Disconnected" name="disconnected" domain="[('pppoe_status', '=', 'disconnected')]"/>
                 <group expand="0" string="Group By">
                     <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'customer_id'}"/>
                     <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
+                    <filter string="Status PPPoE" name="group_by_pppoe" context="{'group_by': 'pppoe_status'}"/>
                 </group>
             </search>
         </field>

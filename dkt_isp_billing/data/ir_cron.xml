@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Cron untuk update status PPPoE -->
+        <record id="ir_cron_update_pppoe_status" model="ir.cron">
+            <field name="name">Update Status PPPoE CPE</field>
+            <field name="model_id" ref="model_isp_cpe"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_update_pppoe_status()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="doall" eval="False"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo> 

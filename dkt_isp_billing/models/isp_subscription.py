@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from odoo.exceptions import UserError, ValidationError
 import logging
+import routeros_api
 
 _logger = logging.getLogger(__name__)
 
@@ -14,6 +15,8 @@ class ISPSubscription(models.Model):
     name = fields.Char('Nomor', readonly=True, copy=False)
     customer_id = fields.Many2one('isp.customer', string='Pelanggan', required=True, tracking=True)
     partner_id = fields.Many2one(related='customer_id.partner_id', store=True)
+    cpe_id = fields.Many2one('isp.cpe', string='CPE', required=True, tracking=True,
+                          domain="[('customer_id', '=', customer_id), ('state', 'in', ['draft', 'active'])]")
     package_id = fields.Many2one('isp.package', string='Paket', required=True, tracking=True)
     
     date_start = fields.Date('Tanggal Mulai', default=fields.Date.today, required=True, tracking=True)
@@ -30,14 +33,14 @@ class ISPSubscription(models.Model):
     
     state = fields.Selection([
         ('draft', 'Draft'),
-        ('active', 'Aktif'),
+        ('open', 'Open'),
         ('isolated', 'Terisolir'),
-        ('cancelled', 'Dibatalkan')
-    ], default='draft', string='Status', tracking=True)
+        ('terminated', 'Terminasi')
+    ], string='Status', default='draft', tracking=True)
     
     amount = fields.Float('Jumlah Tagihan', related='package_id.price', store=True)
     
-    # Tambahkan field-field ini setelah field amount
+    # Fields untuk diskon
     discount_id = fields.Many2one('isp.discount', string='Diskon', tracking=True)
     discount_type = fields.Selection(related='discount_id.type', string='Tipe Diskon', readonly=True)
     discount_value = fields.Float(related='discount_id.value', string='Nilai Diskon', readonly=True)
@@ -55,11 +58,23 @@ class ISPSubscription(models.Model):
     )
     
     last_notification_date = fields.Date('Tanggal Notifikasi Terakhir')
-    mikrotik_user = fields.Char('Mikrotik Username', related='customer_id.cpe_ids.pppoe_username', readonly=True)
+    mikrotik_user = fields.Char('Mikrotik Username', related='cpe_id.pppoe_username', readonly=True)
     
-    # Tambahkan field untuk melacak invoice
+    # Fields untuk invoice
     invoice_ids = fields.One2many('account.move', 'subscription_id', string='Invoice', domain=[('move_type', '=', 'out_invoice')])
     invoice_count = fields.Integer(string='Jumlah Invoice', compute='_compute_invoice_count')
+    
+    # Fields untuk invoice tracking
+    invoice_draft_count = fields.Integer(string='Invoice Draft', compute='_compute_invoice_stats')
+    invoice_posted_count = fields.Integer(string='Invoice Posted', compute='_compute_invoice_stats')
+    invoice_paid_count = fields.Integer(string='Invoice Terbayar', compute='_compute_invoice_stats')
+    invoice_overdue_count = fields.Integer(string='Invoice Menunggak', compute='_compute_invoice_stats')
+    total_unpaid_amount = fields.Float(string='Total Tunggakan', compute='_compute_invoice_stats')
+    
+    _sql_constraints = [
+        ('unique_active_cpe', 'unique(cpe_id,state)',
+         'CPE ini sudah memiliki subscription aktif!')
+    ]
     
     @api.model_create_multi
     def create(self, vals_list):
@@ -67,6 +82,18 @@ class ISPSubscription(models.Model):
             if not vals.get('name'):
                 vals['name'] = self.env['ir.sequence'].next_by_code('isp.subscription.sequence')
         return super().create(vals_list)
+    
+    @api.constrains('cpe_id', 'state')
+    def _check_active_subscription(self):
+        for record in self:
+            if record.state == 'open':
+                active_subs = self.search([
+                    ('cpe_id', '=', record.cpe_id.id),
+                    ('state', '=', 'open'),
+                    ('id', '!=', record.id)
+                ])
+                if active_subs:
+                    raise ValidationError(f'CPE {record.cpe_id.name} sudah memiliki subscription open!')
     
     @api.constrains('due_day')
     def _check_due_day(self):
@@ -118,8 +145,8 @@ class ISPSubscription(models.Model):
             raise ValidationError('Tidak ditemukan jurnal penjualan. Silakan buat jurnal penjualan terlebih dahulu.')
             
         # Dapatkan akun pendapatan dari produk/paket
-        income_account = self.package_id.product_tmpl_id.property_account_income_id or \
-                        self.package_id.product_tmpl_id.categ_id.property_account_income_categ_id
+        income_account = self.package_id.product_id.property_account_income_id or \
+                        self.package_id.product_id.categ_id.property_account_income_categ_id
         if not income_account:
             raise ValidationError('Tidak ditemukan akun pendapatan pada produk/paket. Silakan atur akun pendapatan pada produk atau kategori produk.')
         
@@ -189,6 +216,33 @@ class ISPSubscription(models.Model):
             }
         }
 
+    @api.depends('invoice_ids')
+    def _compute_invoice_count(self):
+        for record in self:
+            record.invoice_count = len(record.invoice_ids)
+
+    @api.depends('invoice_ids', 'invoice_ids.state', 'invoice_ids.payment_state', 'invoice_ids.amount_residual')
+    def _compute_invoice_stats(self):
+        """Hitung statistik invoice"""
+        for record in self:
+            # Reset counter
+            record.invoice_draft_count = 0
+            record.invoice_posted_count = 0
+            record.invoice_paid_count = 0
+            record.invoice_overdue_count = 0
+            record.total_unpaid_amount = 0.0
+            
+            for invoice in record.invoice_ids:
+                if invoice.state == 'draft':
+                    record.invoice_draft_count += 1
+                elif invoice.state == 'posted':
+                    record.invoice_posted_count += 1
+                    if invoice.payment_state == 'paid':
+                        record.invoice_paid_count += 1
+                    elif invoice.payment_state in ['not_paid', 'partial'] and invoice.invoice_date_due < fields.Date.today():
+                        record.invoice_overdue_count += 1
+                        record.total_unpaid_amount += invoice.amount_residual
+
     def generate_invoice(self):
         """Generate invoice for subscription"""
         self.ensure_one()
@@ -196,6 +250,9 @@ class ISPSubscription(models.Model):
         
         if not self.partner_id:
             raise ValidationError('Partner/Contact harus diisi!')
+            
+        if self.state not in ['open', 'isolated']:
+            raise ValidationError('Hanya subscription dengan status open atau terisolir yang dapat membuat invoice!')
 
         # Cek invoice bulan berjalan
         existing_invoice = self._check_existing_invoice()
@@ -230,6 +287,17 @@ class ISPSubscription(models.Model):
             self.message_post(body=msg, message_type='notification')
             _logger.info(f'Invoice {invoice.name} berhasil dibuat')
             
+            # Tampilkan notifikasi sukses
+            self.env['bus.bus']._sendone(
+                self.env.user.partner_id,
+                'simple_notification',
+                {
+                    'title': 'Sukses',
+                    'message': f'Invoice {invoice.name} berhasil dibuat',
+                    'type': 'success',
+                }
+            )
+            
             # Return action untuk membuka invoice
             return {
                 'type': 'ir.actions.act_window',
@@ -249,7 +317,7 @@ class ISPSubscription(models.Model):
         """Cron job untuk membuat invoice otomatis"""
         today = fields.Date.today()
         subscriptions = self.search([
-            ('state', '=', 'active'),
+            ('state', '=', 'open'),
             ('next_invoice_date', '<=', today)
         ])
         for subscription in subscriptions:
@@ -306,160 +374,358 @@ class ISPSubscription(models.Model):
         except Exception as e:
             _logger.error(f'Error saat mengirim notifikasi WhatsApp: {str(e)}')
             return False
-            
-    def _isolate_mikrotik(self):
-        """Helper method untuk isolir di Mikrotik"""
-        self.ensure_one()
-        if not self.mikrotik_user:
-            return False
-            
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-        if not mikrotik:
-            raise UserError('Konfigurasi Mikrotik belum diatur!')
-            
-        return mikrotik.disable_user(self.mikrotik_user)
-    
-    def _activate_mikrotik(self):
-        """Helper method untuk aktivasi di Mikrotik"""
-        self.ensure_one()
-        if not self.mikrotik_user:
-            return False
-            
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-        if not mikrotik:
-            raise UserError('Konfigurasi Mikrotik belum diatur!')
-            
-        return mikrotik.enable_user(self.mikrotik_user)
-    
-    def action_activate(self):
-        """Aktivasi subscription"""
-        self.ensure_one()
-        
-        # Validasi pelanggan dan paket
-        if not self.customer_id or not self.package_id:
-            raise ValidationError('Pelanggan dan Paket harus diisi!')
-            
-        # Validasi status pelanggan
-        if self.customer_id.state != 'active':
-            raise ValidationError('Pelanggan harus dalam status aktif sebelum subscription dapat diaktifkan!')
-            
-        # Validasi CPE
-        if not self.customer_id.cpe_ids:
-            raise ValidationError('Pelanggan belum memiliki CPE yang terdaftar!')
-            
-        active_cpe = self.customer_id.cpe_ids.filtered(lambda c: c.state == 'active')
-        if not active_cpe:
-            raise ValidationError('Pelanggan belum memiliki CPE yang aktif!')
-            
-        # Validasi PPPoE username
-        if not active_cpe.pppoe_username or not active_cpe.pppoe_password:
-            raise ValidationError('CPE belum memiliki kredensial PPPoE yang valid!')
-            
-        # Aktifkan di Mikrotik
-        if not self._activate_mikrotik():
-            raise UserError('Gagal mengaktifkan user di Mikrotik!')
-        
-        # Update status
-        self.write({
-            'state': 'active',
-            'date_start': fields.Date.today(),
-        })
-        
-        # Kirim notifikasi WhatsApp (akan diskip jika tidak aktif)
-        self._send_whatsapp_notification('activation', 
-            customer_name=self.customer_id.name,
-            package_name=self.package_id.name
-        )
-        
-        # Buat invoice pertama
-        self.generate_invoice()
-        
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Sukses',
-                'message': 'Subscription berhasil diaktifkan',
-                'type': 'success',
-            }
-        }
 
+    def action_open(self):
+        """Aktivasi subscription dan enable PPPoE secret"""
+        self.ensure_one()
+        
+        # Validasi data
+        if not self.cpe_id:
+            raise ValidationError('CPE harus diisi!')
+            
+        if not self.cpe_id.pppoe_username:
+            raise ValidationError('CPE belum memiliki PPPoE username!')
+            
+        if not self.package_id:
+            raise ValidationError('Paket harus diisi!')
+            
+        if not self.package_id.profile_id:
+            raise ValidationError('Paket belum memiliki PPPoE Profile!')
+            
+        if not self.package_id.profile_id.name:
+            raise ValidationError('PPPoE Profile belum memiliki nama!')
+            
+        # Update profile di Mikrotik sesuai paket
+        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        if not mikrotik:
+            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+            
+        try:
+            # Parse host dan port
+            host, port = mikrotik._parse_host_port()
+            
+            # Buat koneksi ke Mikrotik
+            connection = routeros_api.RouterOsApiPool(
+                host=str(host),
+                username=str(mikrotik.username),
+                password=str(mikrotik.password),
+                port=int(port),
+                plaintext_login=True
+            )
+            
+            api = connection.get_api()
+            if not api:
+                raise ValidationError('Gagal terhubung ke Mikrotik!')
+                
+            try:
+                # Pastikan username dalam bentuk string
+                pppoe_username = str(self.cpe_id.pppoe_username or '')
+                profile_name = str(self.package_id.profile_id.name or '')
+                
+                # Cek PPPoE secret
+                secret_api = api.get_resource('/ppp/secret')
+                secrets = secret_api.get(name=pppoe_username)
+                
+                if not secrets:
+                    raise ValidationError(f'PPPoE secret {pppoe_username} tidak ditemukan di Mikrotik!')
+                    
+                _logger.info(f'Secret response from Mikrotik: {secrets}')
+                
+                # Update profile dan enable secret
+                secret = secrets[0]
+                if not secret:
+                    raise ValidationError(f'Gagal mendapatkan data secret untuk {pppoe_username}')
+                
+                # Coba ambil ID dengan berbagai kemungkinan key
+                secret_id = secret.get('.id') or secret.get('id') or secret.get('.uid')
+                if not secret_id:
+                    # Jika tidak ada ID, coba list semua key yang ada
+                    available_keys = list(secret.keys())
+                    _logger.info(f'Available keys in secret: {available_keys}')
+                    raise ValidationError(f'Gagal mendapatkan ID secret untuk {pppoe_username}. Available keys: {available_keys}')
+                
+                _logger.info(f'Found secret ID: {secret_id}')
+                
+                # Update profile dan enable secret
+                update_data = {
+                    'id': str(secret_id),
+                    'profile': profile_name,
+                    'disabled': 'no'
+                }
+                _logger.info(f'Updating secret with data: {update_data}')
+                
+                secret_api.set(**update_data)
+                
+                # Update status
+                self.write({'state': 'open'})
+                
+                # Update status CPE jika belum aktif
+                if self.cpe_id.state != 'open':
+                    self.cpe_id.write({'state': 'open'})
+                    
+                # Update status pelanggan jika belum aktif
+                if self.customer_id.state != 'open':
+                    self.customer_id.write({'state': 'open'})
+                    
+                # Tampilkan notifikasi sukses
+                self.env['bus.bus']._sendone(
+                    self.env.user.partner_id,
+                    'simple_notification',
+                    {
+                        'title': 'Sukses',
+                        'message': 'Subscription berhasil diaktifkan',
+                        'type': 'success',
+                    }
+                )
+                
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'reload',
+                }
+            except Exception as e:
+                _logger.error(f'Error saat mengaktifkan subscription: {str(e)}')
+                raise ValidationError(f'Gagal mengaktifkan subscription: {str(e)}')
+            finally:
+                if api:
+                    connection.disconnect()
+        except Exception as e:
+            _logger.error(f'Error saat koneksi ke Mikrotik: {str(e)}')
+            raise ValidationError(f'Gagal terhubung ke Mikrotik: {str(e)}')
+    
     def action_isolate(self):
-        """Isolir subscription"""
+        """Isolir subscription dan disable PPPoE secret"""
         self.ensure_one()
-        if self.state != 'active':
-            raise ValidationError('Hanya subscription aktif yang dapat diisolir!')
+        if self.state != 'open':
+            raise ValidationError('Hanya subscription open yang dapat diisolir!')
             
-        # Isolir di Mikrotik
-        self._isolate_mikrotik()
-        
-        # Update status
-        self.write({'state': 'isolated'})
-        
-        # Kirim notifikasi WhatsApp (akan diskip jika tidak aktif)
-        self._send_whatsapp_notification('isolation',
-            customer_name=self.customer_id.name,
-            due_amount=self.amount
-        )
-        
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Sukses',
-                'message': 'Subscription berhasil diisolir',
-                'type': 'success',
-            }
-        }
+        if not self.cpe_id:
+            raise ValidationError('CPE harus diisi!')
+            
+        if not self.cpe_id.pppoe_username:
+            raise ValidationError('CPE belum memiliki PPPoE username!')
+            
+        # Update profile di Mikrotik sesuai paket
+        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        if not mikrotik:
+            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+            
+        try:
+            # Parse host dan port
+            host, port = mikrotik._parse_host_port()
+            
+            # Buat koneksi ke Mikrotik
+            connection = routeros_api.RouterOsApiPool(
+                host=str(host),
+                username=str(mikrotik.username),
+                password=str(mikrotik.password),
+                port=int(port),
+                plaintext_login=True
+            )
+            
+            api = connection.get_api()
+            if not api:
+                raise ValidationError('Gagal terhubung ke Mikrotik!')
+                
+            try:
+                # Pastikan username dalam bentuk string
+                pppoe_username = str(self.cpe_id.pppoe_username or '')
+                
+                # Cek PPPoE secret
+                secret_api = api.get_resource('/ppp/secret')
+                secrets = secret_api.get(name=pppoe_username)
+                
+                if not secrets:
+                    raise ValidationError(f'PPPoE secret {pppoe_username} tidak ditemukan di Mikrotik!')
+                    
+                _logger.info(f'Secret response from Mikrotik: {secrets}')
+                
+                # Update profile dan enable secret
+                secret = secrets[0]
+                if not secret:
+                    raise ValidationError(f'Gagal mendapatkan data secret untuk {pppoe_username}')
+                
+                # Coba ambil ID dengan berbagai kemungkinan key
+                secret_id = secret.get('.id') or secret.get('id') or secret.get('.uid')
+                if not secret_id:
+                    # Jika tidak ada ID, coba list semua key yang ada
+                    available_keys = list(secret.keys())
+                    _logger.info(f'Available keys in secret: {available_keys}')
+                    raise ValidationError(f'Gagal mendapatkan ID secret untuk {pppoe_username}. Available keys: {available_keys}')
+                
+                _logger.info(f'Found secret ID: {secret_id}')
+                
+                # Disable secret
+                update_data = {
+                    'id': str(secret_id),
+                    'disabled': 'yes'
+                }
+                _logger.info(f'Updating secret with data: {update_data}')
+                
+                secret_api.set(**update_data)
+                
+                # Update status
+                self.write({'state': 'isolated'})
+                
+                # Cek apakah masih ada subscription open untuk CPE ini
+                active_subs = self.search([
+                    ('cpe_id', '=', self.cpe_id.id),
+                    ('state', '=', 'open'),
+                    ('id', '!=', self.id)
+                ])
+                
+                if not active_subs:
+                    # Jika tidak ada subscription open lain, isolir CPE
+                    self.cpe_id.write({'state': 'isolated'})
+                    
+                    # Cek apakah masih ada CPE open untuk pelanggan ini
+                    active_cpes = self.env['isp.cpe'].search([
+                        ('customer_id', '=', self.customer_id.id),
+                        ('state', '=', 'open')
+                    ])
+                    
+                    if not active_cpes:
+                        # Jika tidak ada CPE open lain, isolir pelanggan
+                        self.customer_id.write({'state': 'isolated'})
+                
+                # Tampilkan notifikasi sukses
+                self.env['bus.bus']._sendone(
+                    self.env.user.partner_id,
+                    'simple_notification',
+                    {
+                        'title': 'Sukses',
+                        'message': 'Subscription berhasil diisolir',
+                        'type': 'success',
+                    }
+                )
+                
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'reload',
+                }
+            except Exception as e:
+                _logger.error(f'Error saat mengisolir subscription: {str(e)}')
+                raise ValidationError(f'Gagal mengisolir subscription: {str(e)}')
+            finally:
+                if api:
+                    connection.disconnect()
+        except Exception as e:
+            _logger.error(f'Error saat koneksi ke Mikrotik: {str(e)}')
+            raise ValidationError(f'Gagal terhubung ke Mikrotik: {str(e)}')
     
-    def cron_check_due_date(self):
-        """Cron job untuk mengecek jatuh tempo dan mengirim notifikasi"""
-        today = fields.Date.today()
-        
-        # Notifikasi 3 hari sebelum jatuh tempo
-        due_soon = self.search([
-            ('state', '=', 'active'),
-            ('next_invoice_date', '=', today + timedelta(days=3)),
-            ('last_notification_date', '!=', today)
-        ])
-        for subscription in due_soon:
-            subscription._send_whatsapp_notification('due_reminder',
-                customer_name=subscription.customer_id.name,
-                due_date=subscription.next_invoice_date,
-                amount=subscription.amount
-            )
-            subscription.last_notification_date = today
-        
-        # Notifikasi 3 hari setelah jatuh tempo
-        overdue = self.search([
-            ('state', '=', 'active'),
-            ('next_invoice_date', '=', today - timedelta(days=3)),
-            ('last_notification_date', '!=', today)
-        ])
-        for subscription in overdue:
-            subscription._send_whatsapp_notification('overdue_reminder',
-                customer_name=subscription.customer_id.name,
-                due_date=subscription.next_invoice_date,
-                amount=subscription.amount
-            )
-            subscription.last_notification_date = today
-
-    def action_cancel(self):
+    def action_terminate(self):
+        """Terminasi subscription dan hapus PPPoE secret"""
         self.ensure_one()
-        self.state = 'cancelled'
+        if self.state not in ['open', 'isolated']:
+            raise ValidationError('Hanya subscription open atau terisolir yang dapat diterminasi!')
+            
+        # Update profile di Mikrotik sesuai paket
+        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        if not mikrotik:
+            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+            
+        try:
+            # Parse host dan port
+            host, port = mikrotik._parse_host_port()
+            
+            # Buat koneksi ke Mikrotik
+            connection = routeros_api.RouterOsApiPool(
+                host=str(host),
+                username=str(mikrotik.username),
+                password=str(mikrotik.password),
+                port=int(port),
+                plaintext_login=True
+            )
+            
+            api = connection.get_api()
+            if not api:
+                raise ValidationError('Gagal terhubung ke Mikrotik!')
+                
+            try:
+                # Pastikan username dalam bentuk string
+                pppoe_username = str(self.cpe_id.pppoe_username or '')
+                
+                # Cek PPPoE secret
+                secret_api = api.get_resource('/ppp/secret')
+                secrets = secret_api.get(name=pppoe_username)
+                
+                if secrets:
+                    # Hapus secret dari Mikrotik
+                    secret = secrets[0]
+                    secret_id = secret.get('.id') or secret.get('id') or secret.get('.uid')
+                    if secret_id:
+                        secret_api.remove(id=str(secret_id))
+                
+                # Update status subscription
+                self.write({'state': 'terminated'})
+                
+                # Cek apakah masih ada subscription aktif untuk CPE ini
+                active_subs = self.search([
+                    ('cpe_id', '=', self.cpe_id.id),
+                    ('state', 'in', ['open', 'isolated']),
+                    ('id', '!=', self.id)
+                ])
+                
+                if not active_subs:
+                    # Reset CPE ke draft
+                    self.cpe_id.write({
+                        'state': 'draft',
+                        'pppoe_username': False,
+                        'pppoe_password': False
+                    })
+                    
+                    # Cek apakah masih ada CPE aktif untuk pelanggan ini
+                    active_cpes = self.env['isp.cpe'].search([
+                        ('customer_id', '=', self.customer_id.id),
+                        ('state', 'in', ['open', 'isolated'])
+                    ])
+                    
+                    if not active_cpes:
+                        # Reset pelanggan ke draft
+                        self.customer_id.write({'state': 'draft'})
+                
+                # Tampilkan notifikasi sukses
+                self.env['bus.bus']._sendone(
+                    self.env.user.partner_id,
+                    'simple_notification',
+                    {
+                        'title': 'Sukses',
+                        'message': 'Subscription berhasil diterminasi',
+                        'type': 'success',
+                    }
+                )
+                
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'reload',
+                }
+            except Exception as e:
+                _logger.error(f'Error saat terminasi subscription: {str(e)}')
+                raise ValidationError(f'Gagal terminasi subscription: {str(e)}')
+            finally:
+                if api:
+                    connection.disconnect()
+        except Exception as e:
+            _logger.error(f'Error saat koneksi ke Mikrotik: {str(e)}')
+            raise ValidationError(f'Gagal terhubung ke Mikrotik: {str(e)}')
 
-    @api.depends('invoice_ids')
-    def _compute_invoice_count(self):
-        for record in self:
-            record.invoice_count = len(record.invoice_ids)
-    
     def action_view_invoices(self):
+        """Tampilkan invoice subscription"""
         self.ensure_one()
-        return {
+        action = {
             'name': 'Invoice',
             'view_mode': 'tree,form',
             'res_model': 'account.move',
             'type': 'ir.actions.act_window',
             'domain': [('subscription_id', '=', self.id), ('move_type', '=', 'out_invoice')],
             'context': {'default_subscription_id': self.id, 'default_move_type': 'out_invoice'},
-        } 
+        }
+        
+        # Tambahkan filter berdasarkan status
+        action['context'].update({
+            'search_default_draft': 1,
+            'search_default_posted': 1,
+            'search_default_unpaid': 1,
+            'search_default_overdue': 1,
+        })
+        
+        return action 

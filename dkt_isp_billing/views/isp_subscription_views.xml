@@ -6,11 +6,12 @@
         <field name="model">isp.subscription</field>
         <field name="arch" type="xml">
             <tree decoration-info="state == 'draft'" 
-                  decoration-success="state == 'active'"
+                  decoration-success="state == 'open'"
                   decoration-warning="state == 'isolated'"
-                  decoration-danger="state == 'cancelled'">
+                  decoration-danger="state == 'terminated'">
                 <field name="name"/>
                 <field name="customer_id"/>
+                <field name="cpe_id"/>
                 <field name="package_id"/>
                 <field name="date_start"/>
                 <field name="next_invoice_date"/>
@@ -31,72 +32,151 @@
                             string="Buat Invoice" 
                             type="object" 
                             class="oe_highlight"
-                            invisible="state != 'active'"/>
+                            invisible="state not in ['open', 'isolated']"/>
                     <button name="unlink_draft_invoice"
                             string="Hapus Invoice Draft"
                             type="object"
                             class="text-warning"
-                            invisible="state != 'active'"/>
-                    <button name="action_activate" 
-                            string="Aktivasi" 
+                            invisible="state not in ['open', 'isolated']"/>
+                    <button name="action_open" 
+                            string="Open" 
                             type="object"
                             class="oe_highlight"
                             invisible="state != 'draft'"/>
                     <button name="action_isolate" 
                             string="Isolir" 
                             type="object"
-                            invisible="state != 'active'"/>
-                    <button name="action_cancel" 
-                            string="Batalkan" 
+                            class="btn btn-warning"
+                            invisible="state != 'open'"/>
+                    <button name="action_open" 
+                            string="Buka Isolir" 
                             type="object"
-                            invisible="state == 'cancelled'"/>
-                    <field name="state" widget="statusbar"/>
+                            class="oe_highlight"
+                            invisible="state != 'isolated'"/>
+                    <button name="action_terminate" 
+                            string="Terminasi" 
+                            type="object"
+                            class="btn btn-danger"
+                            invisible="state not in ['open', 'isolated']"
+                            confirm="Apakah Anda yakin akan menterminasi subscription ini? Tindakan ini akan menghapus PPPoE secret dari Mikrotik."/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,open,isolated,terminated"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button name="action_view_invoices" type="object" class="oe_stat_button" icon="fa-file-text-o">
-                            <field name="invoice_count" widget="statinfo" string="Invoice"/>
+                        <button name="action_view_invoices" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-file-text">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value">
+                                    <field name="invoice_count"/>
+                                </span>
+                                <span class="o_stat_text">Invoice</span>
+                            </div>
                         </button>
                     </div>
                     <div class="oe_title">
                         <h1>
-                            <field name="name"/>
+                            <field name="name" readonly="1"/>
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="customer_id"/>
-                            <field name="package_id"/>
-                            <field name="amount"/>
-                            <field name="discount_id" options="{'no_create': True, 'no_open': True}"/>
-                            <field name="discount_type" invisible="not discount_id"/>
-                            <field name="discount_value" invisible="not discount_id"/>
-                            <field name="discount_amount" invisible="not discount_id" widget="monetary"/>
-                            <field name="final_amount" widget="monetary" decoration-danger="discount_id"/>
+                            <field name="customer_id" readonly="state != 'draft'"/>
+                            <field name="cpe_id" readonly="state != 'draft'"/>
+                            <field name="package_id" readonly="state != 'draft'"/>
+                            <field name="date_start" readonly="state != 'draft'"/>
                         </group>
                         <group>
-                            <field name="date_start"/>
                             <field name="due_day"/>
                             <field name="next_invoice_date"/>
-                            <field name="last_invoice_date"/>
                             <field name="recurring_interval"/>
                             <field name="recurring_rule_type"/>
                         </group>
+                    </group>
+                    <group string="Tagihan">
                         <group>
-                            <field name="last_notification_date" force_save="1"/>
-                            <field name="mikrotik_user" force_save="1"/>
+                            <field name="amount"/>
+                            <field name="discount_id"/>
+                            <field name="discount_amount"/>
+                            <field name="final_amount"/>
+                        </group>
+                        <group>
+                            <field name="invoice_draft_count"/>
+                            <field name="invoice_posted_count"/>
+                            <field name="invoice_paid_count"/>
+                            <field name="invoice_overdue_count"/>
+                            <field name="total_unpaid_amount" widget="monetary"/>
                         </group>
                     </group>
                     <notebook>
                         <page string="Invoice" name="invoice">
                             <field name="invoice_ids" readonly="1">
-                                <tree>
+                                <tree decoration-info="state == 'draft'"
+                                      decoration-success="payment_state == 'paid'"
+                                      decoration-warning="payment_state == 'partial'"
+                                      decoration-danger="payment_state in ['not_paid'] and invoice_date_due &lt; current_date">
                                     <field name="name"/>
                                     <field name="invoice_date"/>
-                                    <field name="amount_total"/>
-                                    <field name="state"/>
+                                    <field name="invoice_date_due"/>
+                                    <field name="amount_total" sum="Total"/>
+                                    <field name="amount_residual" sum="Sisa"/>
                                     <field name="payment_state"/>
+                                    <field name="state"/>
+                                    <button name="action_post" 
+                                            string="Post" 
+                                            type="object" 
+                                            icon="fa-check"
+                                            attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                                    <button name="action_register_payment"
+                                            string="Pay"
+                                            type="object"
+                                            icon="fa-money"
+                                            attrs="{'invisible': ['|', ('state', '!=', 'posted'), ('payment_state', '=', 'paid')]}"/>
                                 </tree>
+                                <form>
+                                    <header>
+                                        <button name="action_post" 
+                                                string="Post" 
+                                                type="object"
+                                                class="oe_highlight"
+                                                attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                                        <button name="action_register_payment"
+                                                string="Register Payment"
+                                                type="object"
+                                                class="oe_highlight"
+                                                attrs="{'invisible': ['|', ('state', '!=', 'posted'), ('payment_state', '=', 'paid')]}"/>
+                                        <field name="state" widget="statusbar"/>
+                                    </header>
+                                    <sheet>
+                                        <group>
+                                            <group>
+                                                <field name="name"/>
+                                                <field name="partner_id"/>
+                                                <field name="invoice_date"/>
+                                                <field name="invoice_date_due"/>
+                                            </group>
+                                            <group>
+                                                <field name="amount_total"/>
+                                                <field name="amount_residual"/>
+                                                <field name="payment_state"/>
+                                                <field name="state"/>
+                                            </group>
+                                        </group>
+                                        <notebook>
+                                            <page string="Invoice Lines" name="invoice_lines">
+                                                <field name="invoice_line_ids" readonly="1">
+                                                    <tree>
+                                                        <field name="name"/>
+                                                        <field name="quantity"/>
+                                                        <field name="price_unit"/>
+                                                        <field name="price_subtotal"/>
+                                                    </tree>
+                                                </field>
+                                            </page>
+                                        </notebook>
+                                    </sheet>
+                                </form>
                             </field>
                         </page>
                     </notebook>
@@ -119,30 +199,42 @@
                 <field name="name"/>
                 <field name="customer_id"/>
                 <field name="package_id"/>
-                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
-                <filter string="Aktif" name="active" domain="[('state','=','active')]"/>
-                <filter string="Terisolir" name="isolated" domain="[('state','=','isolated')]"/>
-                <filter string="Dibatalkan" name="cancelled" domain="[('state','=','cancelled')]"/>
+                <separator/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Open" name="open" domain="[('state', '=', 'open')]"/>
+                <filter string="Terisolir" name="isolated" domain="[('state', '=', 'isolated')]"/>
+                <filter string="Terminasi" name="terminated" domain="[('state', '=', 'terminated')]"/>
+                <separator/>
+                <filter string="Ada Invoice Draft" 
+                        name="has_draft_invoice" 
+                        domain="[('invoice_ids.state', '=', 'draft')]"/>
+                <filter string="Ada Invoice Posted" 
+                        name="has_posted_invoice" 
+                        domain="[('invoice_ids.state', '=', 'posted')]"/>
+                <filter string="Ada Invoice Terbayar" 
+                        name="has_paid_invoice" 
+                        domain="[('invoice_ids.payment_state', '=', 'paid')]"/>
+                <filter string="Ada Invoice Menunggak" 
+                        name="has_overdue_invoice" 
+                        domain="[('invoice_ids.payment_state', 'in', ['not_paid', 'partial']), ('invoice_ids.invoice_date_due', '&lt;', context_today)]"/>
                 <group expand="0" string="Group By">
-                    <filter string="Pelanggan" name="customer" context="{'group_by':'customer_id'}"/>
-                    <filter string="Paket" name="package" context="{'group_by':'package_id'}"/>
-                    <filter string="Status" name="state" context="{'group_by':'state'}"/>
+                    <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'customer_id'}"/>
+                    <filter string="Paket" name="group_by_package" context="{'group_by': 'package_id'}"/>
+                    <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
                 </group>
             </search>
         </field>
     </record>
 
     <!-- Action -->
-    <record id="view_isp_subscription_action" model="ir.actions.act_window">
+    <record id="action_isp_subscription" model="ir.actions.act_window">
         <field name="name">Subscription</field>
         <field name="res_model">isp.subscription</field>
         <field name="view_mode">tree,form</field>
+        <field name="context">{}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Belum ada subscription
-            </p>
-            <p>
-                Klik tombol 'Buat' untuk membuat subscription baru.
+                Buat subscription baru
             </p>
         </field>
     </record>

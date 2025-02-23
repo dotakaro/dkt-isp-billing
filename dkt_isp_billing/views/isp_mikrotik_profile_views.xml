@@ -66,7 +66,7 @@
                                 <tree>
                                     <field name="name"/>
                                     <field name="price"/>
-                                    <field name="customer_count"/>
+                                    <field name="subscription_count"/>
                                 </tree>
                             </field>
                         </page>

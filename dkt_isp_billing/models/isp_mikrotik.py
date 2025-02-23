@@ -131,7 +131,10 @@ class ISPMikrotikConfig(models.Model):
                 port=port,
                 plaintext_login=True
             )
-            return connection.get_api()
+            api = connection.get_api()
+            # Simpan connection pool di api object untuk digunakan saat disconnect
+            api.connection_pool = connection
+            return api
                 
         except Exception as e:
             _logger.error(f'Get connection error: {str(e)}', exc_info=True)
@@ -155,6 +158,9 @@ class ISPMikrotikConfig(models.Model):
             return False
         except Exception as e:
             raise ValidationError(f'Gagal mengaktifkan user di Mikrotik: {str(e)}')
+        finally:
+            if api and hasattr(api, 'connection_pool'):
+                api.connection_pool.disconnect()
 
     def disable_user(self, username):
         """Menonaktifkan user PPPoE di Mikrotik"""
@@ -174,6 +180,9 @@ class ISPMikrotikConfig(models.Model):
             return False
         except Exception as e:
             raise ValidationError(f'Gagal menonaktifkan user di Mikrotik: {str(e)}')
+        finally:
+            if api and hasattr(api, 'connection_pool'):
+                api.connection_pool.disconnect()
 
     @api.model
     def get_default_config(self):
@@ -183,7 +192,6 @@ class ISPMikrotikConfig(models.Model):
 class ISPCustomer(models.Model):
     _inherit = 'isp.customer'
 
-    mikrotik_user_id = fields.Char('Mikrotik User ID', readonly=True)
     is_adopted_secret = fields.Boolean('Is Adopted Secret', default=False, help='Menandakan bahwa secret/user ini diadopsi dari Mikrotik yang sudah ada')
     
     def _check_existing_mikrotik_user(self, username, user_id):
@@ -192,7 +200,7 @@ class ISPCustomer(models.Model):
         Returns: customer yang menggunakan secret tersebut atau False
         """
         existing_customer = self.search([
-            ('mikrotik_user_id', '=', user_id),
+            ('cpe_ids.pppoe_username', '=', username),
             ('id', '!=', self.id)
         ], limit=1)
         return existing_customer
@@ -202,192 +210,78 @@ class ISPCustomer(models.Model):
         Mengadopsi secret/user yang sudah ada di Mikrotik
         """
         self.ensure_one()
-        if not self.package_id or not self.cpe_ids:
-            raise ValidationError('Paket dan CPE harus diisi terlebih dahulu!')
-            
-        cpe = self.cpe_ids[0]
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-        if not mikrotik:
-            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
-            
-        api = mikrotik.get_connection()
-        if not api:
-            raise ValidationError('Gagal terhubung ke Mikrotik!')
-            
-        try:
-            user_api = api.get_resource('/ppp/secret')
-            existing_user = user_api.get(name=cpe.pppoe_username)
-            
-            if existing_user and len(existing_user) > 0:
-                user_id = existing_user[0].get('.id')
-                # Update profile dan informasi lainnya
-                user_api.set(
-                    id=user_id,
-                    profile=self.package_id.profile_id.name,
-                    password=cpe.pppoe_password,
-                    service='pppoe',
-                    remote_address=cpe.ip_address,
-                    comment=f'Customer: {self.name} - {self.customer_id}',
-                    disabled='no'
-                )
-                self.write({
-                    'mikrotik_user_id': user_id,
-                    'state': 'active',
-                    'is_adopted_secret': True
-                })
-                if self.cpe_ids:
-                    self.cpe_ids[0].state = 'active'
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': 'Sukses',
-                        'message': f'Secret/User PPPoE {cpe.pppoe_username} berhasil diadopsi',
-                        'type': 'success',
-                    }
-                }
-        except Exception as e:
-            raise ValidationError(f'Gagal mengadopsi secret: {str(e)}')
-        finally:
-            if api:
-                try:
-                    api.disconnect()
-                except:
-                    pass
-
-    def _create_mikrotik_user(self):
-        self.ensure_one()
-        if not self.package_id or not self.cpe_ids:
-            raise ValidationError('Paket dan CPE harus diisi terlebih dahulu!')
+        if not self.cpe_ids:
+            raise ValidationError('CPE harus diisi terlebih dahulu!')
             
         cpe = self.cpe_ids[0]
         if not cpe.pppoe_username or not cpe.pppoe_password:
             raise ValidationError('PPPoE Username dan Password harus diisi di CPE!')
             
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-        if not mikrotik:
-            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+        if cpe.adopt_mikrotik_secret():
+            self.write({
+                'state': 'active',
+                'is_adopted_secret': True
+            })
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sukses',
+                    'message': f'Secret/User PPPoE {cpe.pppoe_username} berhasil diadopsi',
+                    'type': 'success',
+                }
+            }
+        raise ValidationError(f'Gagal mengadopsi secret {cpe.pppoe_username}')
+
+    def create_mikrotik_user(self, cpe):
+        """Buat user di Mikrotik"""
+        if not cpe:
+            return False, 'CPE tidak ditemukan'
             
-        api = mikrotik.get_connection()
-        if not api:
-            raise ValidationError('Gagal terhubung ke Mikrotik!')
+        # Cek apakah secret sudah ada
+        exists, user_id, error, secret_data = cpe._check_mikrotik_secret()
+        _logger.info(f'Checking secret {cpe.pppoe_username}: exists={exists}, user_id={user_id}, error={error}')
+        
+        if error:
+            return False, error
             
+        if exists:
+            # Coba adopsi secret yang ada
+            success, message = cpe.adopt_mikrotik_secret()
+            if not success:
+                _logger.error(f'Create Mikrotik user error: {message}')
+                return False, message
+            return True, message
+            
+        # Buat secret baru
         try:
-            # Cek apakah secret sudah ada di Mikrotik
-            exists, user_id, error = cpe._check_mikrotik_secret()
-            _logger.info(f'Checking secret {cpe.pppoe_username}: exists={exists}, user_id={user_id}, error={error}')
-            
-            if exists:
-                if error:
-                    raise ValidationError(error)
-                # Adopsi secret yang ada
-                if cpe.adopt_mikrotik_secret():
-                    # Verifikasi status setelah adopsi
-                    self.env.cr.commit()
-                    self.invalidate_cache()
-                    cpe.invalidate_cache()
-                    
-                    _logger.info(f'Status after adopt - Customer: {self.state}, Is Adopted: {self.is_adopted_secret}, CPE: {cpe.state}')
-                    
-                    return {
-                        'type': 'ir.actions.client',
-                        'tag': 'display_notification',
-                        'params': {
-                            'title': 'Sukses',
-                            'message': f'Secret/User PPPoE {cpe.pppoe_username} berhasil diadopsi',
-                            'type': 'success',
-                        }
-                    }
-                else:
-                    raise ValidationError(f'Gagal mengadopsi secret {cpe.pppoe_username}')
-            
-            # Jika secret belum ada, buat baru
-            user_api = api.get_resource('/ppp/secret')
-            _logger.info(f'Creating new PPPoE secret for {cpe.pppoe_username}')
-            try:
-                result = user_api.add(
-                    name=cpe.pppoe_username,
-                    password=cpe.pppoe_password,
-                    service='pppoe',
-                    profile=self.package_id.profile_id.name,
-                    remote_address=cpe.ip_address,
-                    comment=f'Customer: {self.name} - {self.customer_id}',
-                    disabled='no'
-                )
+            api = self.get_connection()
+            if not api:
+                return False, 'Gagal terhubung ke Mikrotik'
                 
-                if isinstance(result, list) and len(result) > 0:
-                    # Update status pelanggan
-                    vals = {
-                        'mikrotik_user_id': result[0].get('ret'),
-                        'state': 'active'
-                    }
-                    _logger.info(f'Updating customer status after create: {vals}')
-                    self.with_context(force_update=True).write(vals)
-                    
-                    # Update status CPE
-                    if self.cpe_ids:
-                        self.cpe_ids[0].write({'state': 'active'})
-                        
-                    # Verifikasi status
-                    self.env.cr.commit()
-                    self.invalidate_cache()
-                    cpe.invalidate_cache()
-                    
-                    _logger.info(f'Status after create - Customer: {self.state}, CPE: {cpe.state}')
-                    
-                    return {
-                        'type': 'ir.actions.client',
-                        'tag': 'display_notification',
-                        'params': {
-                            'title': 'Sukses',
-                            'message': f'User PPPoE {cpe.pppoe_username} berhasil dibuat',
-                            'type': 'success',
-                        }
-                    }
-                return False
-                
-            except Exception as e:
-                _logger.error(f'Error creating PPPoE secret: {str(e)}')
-                if 'already exists' in str(e).lower():
-                    # Jika error karena secret sudah ada, coba adopsi lagi
-                    exists, user_id, error = cpe._check_mikrotik_secret()
-                    if exists:
-                        if error:
-                            raise ValidationError(error)
-                        if cpe.adopt_mikrotik_secret():
-                            # Verifikasi status setelah adopsi
-                            self.env.cr.commit()
-                            self.invalidate_cache()
-                            cpe.invalidate_cache()
-                            
-                            _logger.info(f'Status after retry adopt - Customer: {self.state}, Is Adopted: {self.is_adopted_secret}, CPE: {cpe.state}')
-                            
-                            return {
-                                'type': 'ir.actions.client',
-                                'tag': 'display_notification',
-                                'params': {
-                                    'title': 'Sukses',
-                                    'message': f'Secret/User PPPoE {cpe.pppoe_username} berhasil diadopsi',
-                                    'type': 'success',
-                                }
-                            }
-                raise ValidationError(f'Gagal membuat user di Mikrotik: {str(e)}')
+            secret_api = api.get_resource('/ppp/secret')
+            secret_data = {
+                'name': cpe.pppoe_username,
+                'password': cpe.pppoe_password,
+                'service': 'pppoe',
+                'profile': cpe.active_subscription_id.package_id.profile_id.name if cpe.active_subscription_id else 'default',
+                'comment': f'Customer: {cpe.customer_id.name} ({cpe.customer_id.customer_id})'
+            }
             
+            secret_api.add(**secret_data)
+            return True, 'Secret berhasil dibuat'
         except Exception as e:
-            _logger.error(f'Create Mikrotik user error: {str(e)}')
-            raise ValidationError(f'Gagal membuat user di Mikrotik: {str(e)}')
+            _logger.error(f'Create Mikrotik user error: {str(e)}', exc_info=True)
+            return False, str(e)
         finally:
-            if api:
-                try:
-                    api.disconnect()
-                except:
-                    pass
+            if api and hasattr(api, 'connection_pool'):
+                api.connection_pool.disconnect()
 
     def action_activate(self):
         """Aktivasi pelanggan"""
         self.ensure_one()
         if self.state == 'draft':
-            return self._create_mikrotik_user()
+            return self.create_mikrotik_user(self.cpe_ids[0])
 
     def action_isolate(self):
         self.ensure_one()
@@ -401,13 +295,20 @@ class ISPCustomer(models.Model):
                 raise ValidationError('Gagal terhubung ke Mikrotik')
                 
             try:
-                user_api = api.get_resource('/ppp/secret')
-                user_api.set(id=self.mikrotik_user_id, disabled='yes')
+                # Isolir semua CPE aktif
+                for cpe in self.cpe_ids.filtered(lambda c: c.state == 'active'):
+                    user_api = api.get_resource('/ppp/secret')
+                    secrets = user_api.get(name=cpe.pppoe_username)
+                    if secrets:
+                        user_id = secrets[0].get('.id')
+                        user_api.set(id=user_id, disabled='yes')
+                        cpe.state = 'isolated'
                 self.state = 'isolated'
             except Exception as e:
                 raise ValidationError(f'Gagal isolir: {str(e)}')
             finally:
-                api.disconnect()
+                if api and hasattr(api, 'connection_pool'):
+                    api.connection_pool.disconnect()
 
     def action_enable(self):
         self.ensure_one()
@@ -421,10 +322,17 @@ class ISPCustomer(models.Model):
                 raise ValidationError('Gagal terhubung ke Mikrotik')
                 
             try:
-                user_api = api.get_resource('/ppp/secret')
-                user_api.set(id=self.mikrotik_user_id, disabled='no')
+                # Aktifkan semua CPE yang terisolir
+                for cpe in self.cpe_ids.filtered(lambda c: c.state == 'isolated'):
+                    user_api = api.get_resource('/ppp/secret')
+                    secrets = user_api.get(name=cpe.pppoe_username)
+                    if secrets:
+                        user_id = secrets[0].get('.id')
+                        user_api.set(id=user_id, disabled='no')
+                        cpe.state = 'active'
                 self.state = 'active'
             except Exception as e:
                 raise ValidationError(f'Gagal buka isolir: {str(e)}')
             finally:
-                api.disconnect() 
+                if api and hasattr(api, 'connection_pool'):
+                    api.connection_pool.disconnect() 

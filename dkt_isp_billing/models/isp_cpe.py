@@ -8,35 +8,54 @@ _logger = logging.getLogger(__name__)
 
 class ISPCPE(models.Model):
     _name = 'isp.cpe'
-    _description = 'CPE'
+    _description = 'Customer Premise Equipment'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char('Nama Perangkat', required=True, tracking=True)
-    mac_address = fields.Char('MAC Address', required=True, tracking=True)
-    customer_id = fields.Many2one('isp.customer', string='Pelanggan', tracking=True)
+    customer_id = fields.Many2one('isp.customer', string='Pelanggan', required=True, tracking=True)
+    mac_address = fields.Char('MAC Address', tracking=True)
     ip_address = fields.Char('IP Address', tracking=True)
     outdoor_unit = fields.Char('Outdoor Unit')
     router = fields.Char('Router')
-    pppoe_username = fields.Char('PPPoE Username', tracking=True, copy=False)
-    pppoe_password = fields.Char('PPPoE Password', tracking=True, copy=False)
+    pppoe_username = fields.Char('PPPoE Username', required=True, tracking=True)
+    pppoe_password = fields.Char('PPPoE Password', required=True, tracking=True)
     ownership = fields.Selection([
         ('customer', 'Milik Pelanggan'),
         ('company', 'Milik Perusahaan')
     ], string='Kepemilikan', default='company')
     state = fields.Selection([
         ('draft', 'Draft'),
-        ('active', 'Aktif'),
-        ('inactive', 'Tidak Aktif'),
-        ('broken', 'Rusak')
-    ], string='Status', default='draft', tracking=True)
+        ('open', 'Open'),
+        ('isolated', 'Terisolir'),
+        ('terminated', 'Terminasi')
+    ], default='draft', string='Status', tracking=True)
     active = fields.Boolean('Active', default=True, tracking=True)
     history_ids = fields.One2many('isp.device.history', 'cpe_id', string='Riwayat')
     notes = fields.Text('Catatan', tracking=True)
     
+    subscription_ids = fields.One2many('isp.subscription', 'cpe_id', string='Subscription')
+    subscription_id = fields.Many2one('isp.subscription', string='Active Subscription',
+                                    compute='_compute_subscription', store=True)
+    subscription_state = fields.Selection(related='subscription_id.state', string='Status Subscription')
+    
     _sql_constraints = [
         ('mac_address_uniq', 'unique(mac_address)', 'MAC Address harus unik!'),
-        ('pppoe_username_uniq', 'unique(pppoe_username)', 'PPPoE Username harus unik!')
+        ('pppoe_username_uniq', 'unique(pppoe_username)', 'PPPoE Username harus unik!'),
     ]
+
+    @api.depends('subscription_ids', 'subscription_ids.state')
+    def _compute_subscription(self):
+        for record in self:
+            # Ambil subscription yang tidak terminated
+            valid_subs = record.subscription_ids.filtered(lambda s: s.state != 'terminated')
+            record.subscription_id = valid_subs[0] if valid_subs else False
+    
+    @api.constrains('subscription_ids')
+    def _check_single_subscription(self):
+        for record in self:
+            active_subs = record.subscription_ids.filtered(lambda s: s.state != 'terminated')
+            if len(active_subs) > 1:
+                raise ValidationError(f'CPE {record.name} hanya boleh memiliki satu subscription aktif!')
 
     @api.model
     def _generate_random_password(self, length=8):
@@ -58,103 +77,121 @@ class ISPCPE(models.Model):
             self.pppoe_username = self._generate_pppoe_username(self.customer_id.customer_id)
             self.pppoe_password = self._generate_random_password()
 
-    def action_generate_pppoe_credentials(self):
-        """Generate new PPPoE credentials."""
-        for record in self:
-            if not record.customer_id:
-                raise ValidationError('Pelanggan harus diisi terlebih dahulu!')
-            record.pppoe_username = self._generate_pppoe_username(record.customer_id.customer_id)
-            record.pppoe_password = self._generate_random_password()
-        return True 
-
+    def generate_pppoe_credentials(self):
+        """Generate PPPoE username dan password"""
+        self.ensure_one()
+        if self.pppoe_username and self.pppoe_password:
+            raise ValidationError('PPPoE credentials sudah ada!')
+            
+        # Generate username dari nama pelanggan
+        if not self.pppoe_username:
+            base_username = self.customer_id.name.lower().replace(' ', '-')
+            counter = 1
+            username = base_username
+            while self.search_count([('pppoe_username', '=', username)]) > 0:
+                username = f"{base_username}-{counter}"
+                counter += 1
+            self.pppoe_username = username
+            
+        # Generate random password
+        if not self.pppoe_password:
+            chars = string.ascii_letters + string.digits
+            self.pppoe_password = ''.join(random.choice(chars) for _ in range(8))
+    
     def _check_mikrotik_secret(self):
         """
-        Mengecek apakah secret/user sudah ada di Mikrotik
-        Returns: (exists, user_id, error_message)
+        Cek apakah secret sudah ada di Mikrotik dan statusnya di Odoo
+        Returns: (exists, user_id, error, secret_data)
         """
         self.ensure_one()
         if not self.pppoe_username:
-            return False, False, 'PPPoE Username belum diisi!'
+            return False, False, 'PPPoE Username tidak boleh kosong!', None
             
         mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
         if not mikrotik:
-            return False, False, 'Konfigurasi Mikrotik tidak ditemukan!'
+            return False, False, 'Konfigurasi Mikrotik tidak ditemukan!', None
             
         api = mikrotik.get_connection()
         if not api:
-            return False, False, 'Gagal terhubung ke Mikrotik!'
+            return False, False, 'Gagal terhubung ke Mikrotik!', None
             
         try:
-            user_api = api.get_resource('/ppp/secret')
-            _logger.info(f'Checking secret for username: {self.pppoe_username}')
-            
-            # Coba get dengan exact match
-            try:
-                existing_user = user_api.get(name=self.pppoe_username)
-                _logger.info(f'Found exact match: {existing_user}')
-            except Exception as e:
-                _logger.error(f'Error getting exact match: {str(e)}')
-                # Jika error, coba dengan print dan filter manual
-                try:
-                    all_secrets = user_api.get()
-                    existing_user = [s for s in all_secrets if s.get('name') == self.pppoe_username]
-                    _logger.info(f'Found after manual filter: {existing_user}')
-                except Exception as e2:
-                    _logger.error(f'Error getting all secrets: {str(e2)}')
-                    return False, False, str(e2)
-            
-            if existing_user and len(existing_user) > 0:
-                # Coba dapatkan ID dengan beberapa kemungkinan key
-                user_id = None
-                for key in ['.id', 'id', 'ret']:
-                    user_id = existing_user[0].get(key)
-                    if user_id:
-                        break
-                
-                _logger.info(f'Found user_id: {user_id}')
-                if user_id:
-                    # Cek apakah secret sudah digunakan oleh pelanggan lain di Odoo
-                    existing_customer = self.env['isp.customer'].search([
-                        ('mikrotik_user_id', '=', user_id),
-                        ('id', '!=', self.customer_id.id if self.customer_id else False)
-                    ], limit=1)
-                    
-                    if existing_customer:
-                        return True, user_id, f'Secret/User PPPoE {self.pppoe_username} sudah digunakan oleh pelanggan: {existing_customer.name} ({existing_customer.customer_id})'
-                    
-                    # Secret ada tapi belum digunakan siapa-siapa
-                    return True, user_id, False
-                    
-            return False, False, False
-            
+            secret_api = api.get_resource('/ppp/secret')
+            secrets = secret_api.get(name=self.pppoe_username)
+            if secrets:
+                return True, secrets[0].get('.id'), None, secrets[0]
+            return False, False, None, None
         except Exception as e:
-            _logger.error(f'Error checking secret: {str(e)}')
-            return False, False, str(e)
+            return False, False, str(e), None
         finally:
-            if api:
-                try:
-                    api.disconnect()
-                except:
-                    pass
+            if api and hasattr(api, 'connection_pool'):
+                api.connection_pool.disconnect()
 
     def adopt_mikrotik_secret(self):
         """
-        Mengadopsi secret/user yang sudah ada di Mikrotik
-        Returns: True jika berhasil, False jika gagal
+        Mengadopsi secret yang sudah ada di Mikrotik
+        Returns: (success, message)
         """
         self.ensure_one()
-        if not self.customer_id or not self.customer_id.package_id:
-            raise ValidationError('Pelanggan dan Paket harus diisi terlebih dahulu!')
+        if not self.pppoe_username or not self.pppoe_password:
+            return False, 'PPPoE Username dan Password harus diisi!'
             
-        exists, user_id, error = self._check_mikrotik_secret()
-        _logger.info(f'Checking before adopt: exists={exists}, user_id={user_id}, error={error}')
+        # Cek apakah secret sudah ada di Mikrotik
+        exists, user_id, error, secret_data = self._check_mikrotik_secret()
+        if error:
+            return False, error
+            
+        if not exists:
+            return False, f'Secret {self.pppoe_username} tidak ditemukan di Mikrotik'
+            
+        # Cek apakah secret sudah dipakai oleh CPE lain
+        existing_cpe = self.env['isp.cpe'].search([
+            ('id', '!=', self.id),
+            ('pppoe_username', '=', self.pppoe_username),
+            ('state', 'not in', ['terminated'])
+        ], limit=1)
         
-        if not exists or not user_id:
-            return False
+        if existing_cpe:
+            return False, f'Secret {self.pppoe_username} sudah dipakai oleh CPE {existing_cpe.name} (Customer: {existing_cpe.customer_id.name}). Silakan gunakan username PPPoE yang lain.'
             
+        # Adopsi secret yang ada
+        try:
+            self.write({
+                'pppoe_password': secret_data.get('password', self.pppoe_password),
+                'state': 'open'
+            })
+            return True, f'Secret {self.pppoe_username} berhasil diadopsi dari Mikrotik'
+        except Exception as e:
+            _logger.error(f'Error adopting secret: {str(e)}')
+            return False, f'Gagal mengadopsi secret {self.pppoe_username}: {str(e)}'
+
+    def action_activate(self):
+        """Aktivasi CPE dan buat PPPoE secret"""
+        self.ensure_one()
+        if not self.subscription_id:
+            raise ValidationError('CPE harus memiliki subscription terlebih dahulu!')
+            
+        # Cek apakah sudah ada secret di Mikrotik
+        exists, user_id, error, secret_data = self._check_mikrotik_secret()
         if error:
             raise ValidationError(error)
             
+        if exists:
+            # Coba adopsi secret yang ada
+            success, message = self.adopt_mikrotik_secret()
+            if not success:
+                raise ValidationError(message)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sukses',
+                    'message': message,
+                    'type': 'success',
+                }
+            }
+            
+        # Jika secret belum ada, buat baru di Mikrotik
         mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
         if not mikrotik:
             raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
@@ -164,66 +201,114 @@ class ISPCPE(models.Model):
             raise ValidationError('Gagal terhubung ke Mikrotik!')
             
         try:
-            user_api = api.get_resource('/ppp/secret')
-            
-            # Pastikan secret masih ada
-            try:
-                existing_user = user_api.get(name=self.pppoe_username)
-                if not existing_user or len(existing_user) == 0:
-                    raise ValidationError(f'Secret {self.pppoe_username} tidak ditemukan di Mikrotik')
-            except Exception as e:
-                _logger.error(f'Error verifying secret before update: {str(e)}')
-                raise ValidationError(f'Gagal memverifikasi secret: {str(e)}')
-            
-            # Update profile dan informasi lainnya
-            _logger.info(f'Updating secret {self.pppoe_username} with ID {user_id}')
-            update_data = {
-                'id': user_id,
-                'profile': self.customer_id.package_id.profile_id.name,
+            secret_api = api.get_resource('/ppp/secret')
+            secret_data = {
+                'name': self.pppoe_username,
                 'password': self.pppoe_password,
                 'service': 'pppoe',
-                'comment': f'Customer: {self.customer_id.name} - {self.customer_id.customer_id}',
-                'disabled': 'no'
+                'profile': self.subscription_id.package_id.profile_id.name,
+                'comment': f'Customer: {self.customer_id.name} ({self.customer_id.customer_id})',
+                'disabled': 'yes'  # Default disabled, akan di-enable oleh subscription
             }
             
-            if self.ip_address:
-                update_data['remote-address'] = self.ip_address
+            secret_api.add(**secret_data)
+            self.write({'state': 'open'})
+            
+            # Aktifkan subscription jika masih draft
+            if self.subscription_id.state == 'draft':
+                self.subscription_id.action_open()
                 
-            _logger.info(f'Update data: {update_data}')
-            user_api.set(**update_data)
-            
-            # Update status pelanggan
-            customer_vals = {
-                'mikrotik_user_id': user_id,
-                'state': 'active',
-                'is_adopted_secret': True
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sukses',
+                    'message': 'CPE berhasil diaktifkan dengan membuat secret baru',
+                    'type': 'success',
+                }
             }
-            _logger.info(f'Updating customer with: {customer_vals}')
-            self.env.cr.commit()  # Commit transaksi sebelum update customer
-            self.customer_id.with_context(force_update=True).write(customer_vals)
-            
-            # Update status CPE
-            cpe_vals = {'state': 'active'}
-            _logger.info(f'Updating CPE with: {cpe_vals}')
-            self.write(cpe_vals)
-            
-            # Verifikasi update status
-            self.env.cr.commit()  # Commit transaksi setelah semua update
-            
-            # Reload record untuk memastikan perubahan tersimpan
-            self.customer_id.invalidate_cache()
-            self.invalidate_cache()
-            
-            _logger.info(f'Status after update - Customer: {self.customer_id.state}, Is Adopted: {self.customer_id.is_adopted_secret}, CPE: {self.state}')
-            
-            return True
-            
         except Exception as e:
-            _logger.error(f'Error adopting secret: {str(e)}')
-            raise ValidationError(f'Gagal mengadopsi secret: {str(e)}')
+            raise ValidationError(f'Gagal mengaktifkan CPE di Mikrotik: {str(e)}')
         finally:
-            if api:
-                try:
-                    api.disconnect()
-                except:
-                    pass 
+            if api and hasattr(api, 'connection_pool'):
+                api.connection_pool.disconnect()
+    
+    def action_isolate(self):
+        """Isolir CPE"""
+        self.ensure_one()
+        if self.state != 'open':
+            raise ValidationError('Hanya CPE open yang dapat diisolir!')
+            
+        if not self.subscription_id:
+            raise ValidationError('CPE tidak memiliki subscription!')
+            
+        # Isolir subscription yang akan otomatis disable PPPoE secret
+        self.subscription_id.action_isolate()
+        
+        self.write({'state': 'isolated'})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Sukses',
+                'message': 'CPE berhasil diisolir',
+                'type': 'success',
+            }
+        }
+    
+    def action_terminate(self):
+        """Terminasi CPE"""
+        self.ensure_one()
+        if self.state not in ['open', 'isolated']:
+            raise ValidationError('Hanya CPE open atau terisolir yang dapat diterminasi!')
+            
+        if self.subscription_id:
+            self.subscription_id.action_terminate()
+            
+        # Hapus secret di Mikrotik
+        exists, user_id, error, secret_data = self._check_mikrotik_secret()
+        if error:
+            raise ValidationError(error)
+            
+        if exists:
+            mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+            if not mikrotik:
+                raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+                
+            api = mikrotik.get_connection()
+            if not api:
+                raise ValidationError('Gagal terhubung ke Mikrotik!')
+                
+            try:
+                secret_api = api.get_resource('/ppp/secret')
+                secret_api.remove(id=user_id)
+            except Exception as e:
+                raise ValidationError(f'Gagal menghapus secret di Mikrotik: {str(e)}')
+            finally:
+                api.disconnect()
+                
+        self.write({'state': 'terminated'})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Sukses',
+                'message': 'CPE berhasil diterminasi',
+                'type': 'success',
+            }
+        }
+    
+    def action_view_subscriptions(self):
+        """Tampilkan subscription CPE"""
+        self.ensure_one()
+        return {
+            'name': 'Subscriptions',
+            'type': 'ir.actions.act_window',
+            'res_model': 'isp.subscription',
+            'view_mode': 'tree,form',
+            'domain': [('cpe_id', '=', self.id)],
+            'context': {
+                'default_customer_id': self.customer_id.id,
+                'default_cpe_id': self.id
+            }
+        } 

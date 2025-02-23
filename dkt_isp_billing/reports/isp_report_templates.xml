@@ -26,7 +26,11 @@
                             <tr>
                                 <td><span t-field="customer.customer_id"/></td>
                                 <td><span t-field="customer.name"/></td>
-                                <td><span t-field="customer.package_id.name"/></td>
+                                <td><span t-field="customer.customer_id"/></td>
+                                <td><span t-field="customer.identity_number"/></td>
+                                <td><span t-field="customer.mobile"/></td>
+                                <td><span t-field="customer.address"/></td>
+                                <td><span t-esc="', '.join(customer.subscription_ids.filtered(lambda s: s.state == 'active').mapped('package_id.name'))"/></td>
                                 <td><span t-field="customer.state"/></td>
                                 <td><span t-field="customer.create_date"/></td>
                             </tr>

@@ -16,8 +16,8 @@ class ISPPackage(models.Model):
     description = fields.Text('Deskripsi', tracking=True)
     active = fields.Boolean('Active', default=True, tracking=True)
     
-    customer_ids = fields.One2many('isp.customer', 'package_id', string='Pelanggan')
-    customer_count = fields.Integer(compute='_compute_customer_count')
+    subscription_ids = fields.One2many('isp.subscription', 'package_id', string='Subscriptions')
+    subscription_count = fields.Integer(compute='_compute_subscription_count')
     
     # Fields yang diambil dari profile
     bandwidth_up = fields.Integer('Bandwidth Upload (Mbps)', compute='_compute_bandwidth', store=True)
@@ -31,6 +31,11 @@ class ISPPackage(models.Model):
         ('profile_uniq', 'unique(profile_id)', 'Profile PPPoE sudah digunakan di paket lain!'),
         ('code_uniq', 'unique(code)', 'Kode paket harus unik!')
     ]
+    
+    @api.depends('subscription_ids')
+    def _compute_subscription_count(self):
+        for record in self:
+            record.subscription_count = len(record.subscription_ids)
     
     @api.model_create_multi
     def create(self, vals_list):
@@ -76,11 +81,6 @@ class ISPPackage(models.Model):
         if products:
             products.unlink()
         return result
-    
-    @api.depends('customer_ids')
-    def _compute_customer_count(self):
-        for record in self:
-            record.customer_count = len(record.customer_ids)
 
     @api.depends('profile_id', 'profile_id.rate_limit')
     def _compute_bandwidth(self):
@@ -159,4 +159,16 @@ class ISPPackage(models.Model):
         if any(field in vals for field in ['bandwidth_up', 'bandwidth_down', 'name']):
             for record in self:
                 record.action_sync_to_mikrotik()
-        return res 
+        return res
+
+    def action_view_subscriptions(self):
+        """Tampilkan subscription paket"""
+        self.ensure_one()
+        return {
+            'name': 'Subscriptions',
+            'type': 'ir.actions.act_window',
+            'res_model': 'isp.subscription',
+            'view_mode': 'tree,form',
+            'domain': [('package_id', '=', self.id)],
+            'context': {'default_package_id': self.id}
+        } 

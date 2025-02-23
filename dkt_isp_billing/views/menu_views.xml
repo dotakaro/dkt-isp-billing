@@ -15,7 +15,7 @@
     <menuitem id="menu_isp_customer"
               name="Daftar Pelanggan"
               parent="menu_isp_customer_root"
-              action="view_isp_customer_action"
+              action="action_isp_customer"
               sequence="10"/>
               
     <!-- Submenu untuk Layanan -->
@@ -33,7 +33,7 @@
     <menuitem id="menu_isp_subscription"
               name="Subscription"
               parent="menu_isp_layanan_root"
-              action="view_isp_subscription_action"
+              action="action_isp_subscription"
               sequence="20"/>
 
     <menuitem id="menu_isp_installation_fee"

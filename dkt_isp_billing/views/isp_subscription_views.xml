@@ -32,6 +32,11 @@
                             type="object" 
                             class="oe_highlight"
                             invisible="state != 'active'"/>
+                    <button name="unlink_draft_invoice"
+                            string="Hapus Invoice Draft"
+                            type="object"
+                            class="text-warning"
+                            invisible="state != 'active'"/>
                     <button name="action_activate" 
                             string="Aktivasi" 
                             type="object"
@@ -48,6 +53,11 @@
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_invoices" type="object" class="oe_stat_button" icon="fa-file-text-o">
+                            <field name="invoice_count" widget="statinfo" string="Invoice"/>
+                        </button>
+                    </div>
                     <div class="oe_title">
                         <h1>
                             <field name="name"/>
@@ -58,6 +68,11 @@
                             <field name="customer_id"/>
                             <field name="package_id"/>
                             <field name="amount"/>
+                            <field name="discount_id" options="{'no_create': True, 'no_open': True}"/>
+                            <field name="discount_type" invisible="not discount_id"/>
+                            <field name="discount_value" invisible="not discount_id"/>
+                            <field name="discount_amount" invisible="not discount_id" widget="monetary"/>
+                            <field name="final_amount" widget="monetary" decoration-danger="discount_id"/>
                         </group>
                         <group>
                             <field name="date_start"/>
@@ -72,6 +87,19 @@
                             <field name="mikrotik_user" force_save="1"/>
                         </group>
                     </group>
+                    <notebook>
+                        <page string="Invoice" name="invoice">
+                            <field name="invoice_ids" readonly="1">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="invoice_date"/>
+                                    <field name="amount_total"/>
+                                    <field name="state"/>
+                                    <field name="payment_state"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>

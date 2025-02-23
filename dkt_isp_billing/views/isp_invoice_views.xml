@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Action untuk Semua Invoice -->
+    <record id="action_isp_invoice_all" model="ir.actions.act_window">
+        <field name="name">Invoice Pelanggan</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('move_type', '=', 'out_invoice'), ('subscription_id', '!=', False)]</field>
+        <field name="context">{'default_move_type': 'out_invoice', 'move_type': 'out_invoice'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada invoice pelanggan
+            </p>
+        </field>
+    </record>
+
+    <!-- Action untuk Draft Invoice -->
+    <record id="action_isp_invoice_draft" model="ir.actions.act_window">
+        <field name="name">Draft Invoice</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('move_type', '=', 'out_invoice'), ('state', '=', 'draft'), ('subscription_id', '!=', False)]</field>
+        <field name="context">{'default_move_type': 'out_invoice', 'move_type': 'out_invoice'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada draft invoice
+            </p>
+        </field>
+    </record>
+
+    <!-- Action untuk Posted Invoice -->
+    <record id="action_isp_invoice_posted" model="ir.actions.act_window">
+        <field name="name">Posted Invoice</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('subscription_id', '!=', False)]</field>
+        <field name="context">{'default_move_type': 'out_invoice', 'move_type': 'out_invoice'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada posted invoice
+            </p>
+        </field>
+    </record>
+
+    <!-- Tree View untuk Invoice -->
+    <record id="view_isp_invoice_tree" model="ir.ui.view">
+        <field name="name">isp.invoice.tree</field>
+        <field name="model">account.move</field>
+        <field name="arch" type="xml">
+            <tree string="Invoice Pelanggan" decoration-info="state == 'draft'" decoration-muted="state == 'cancel'" decoration-success="state == 'posted'">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="subscription_id"/>
+                <field name="invoice_date"/>
+                <field name="amount_untaxed_signed"/>
+                <field name="amount_tax_signed"/>
+                <field name="amount_total_signed"/>
+                <field name="state"/>
+                <field name="payment_state"/>
+            </tree>
+        </field>
+    </record>
+</odoo> 

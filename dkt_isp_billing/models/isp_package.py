@@ -23,10 +23,59 @@ class ISPPackage(models.Model):
     bandwidth_up = fields.Integer('Bandwidth Upload (Mbps)', compute='_compute_bandwidth', store=True)
     bandwidth_down = fields.Integer('Bandwidth Download (Mbps)', compute='_compute_bandwidth', store=True)
     
+    # Field untuk produk
+    product_id = fields.Many2one('product.template', string='Produk', readonly=True,
+                              help="Produk yang terkait dengan paket ini")
+    
     _sql_constraints = [
         ('profile_uniq', 'unique(profile_id)', 'Profile PPPoE sudah digunakan di paket lain!'),
         ('code_uniq', 'unique(code)', 'Kode paket harus unik!')
     ]
+    
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Buat produk untuk setiap paket
+        for vals in vals_list:
+            # Buat produk baru
+            product_vals = {
+                'name': vals.get('name', ''),
+                'type': 'service',
+                'list_price': vals.get('price', 0.0),
+                'standard_price': 0.0,
+                'default_code': vals.get('code', ''),
+                'description': vals.get('description', ''),
+                'detailed_type': 'service',
+                'invoice_policy': 'order',
+            }
+            product = self.env['product.template'].create(product_vals)
+            vals['product_id'] = product.id
+            
+        return super().create(vals_list)
+    
+    def write(self, vals):
+        # Update produk terkait jika ada perubahan
+        if any(field in vals for field in ['name', 'price', 'code', 'description']):
+            for record in self:
+                if record.product_id:
+                    product_vals = {}
+                    if 'name' in vals:
+                        product_vals['name'] = vals['name']
+                    if 'price' in vals:
+                        product_vals['list_price'] = vals['price']
+                    if 'code' in vals:
+                        product_vals['default_code'] = vals['code']
+                    if 'description' in vals:
+                        product_vals['description'] = vals['description']
+                    record.product_id.write(product_vals)
+        return super().write(vals)
+    
+    def unlink(self):
+        # Hapus produk terkait saat paket dihapus
+        products = self.mapped('product_id')
+        result = super().unlink()
+        if products:
+            products.unlink()
+        return result
     
     @api.depends('customer_ids')
     def _compute_customer_count(self):

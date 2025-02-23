@@ -8,4 +8,6 @@ from . import isp_subscription_template
 from . import isp_subscription
 from . import isp_mikrotik
 from . import isp_mikrotik_profile
-from . import isp_report 
+from . import isp_report
+from . import account_move
+from . import isp_discount 

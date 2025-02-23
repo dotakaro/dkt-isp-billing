@@ -22,3 +22,4 @@ access_isp_mikrotik_config_user,isp.mikrotik.config.user,model_isp_mikrotik_conf
 access_isp_mikrotik_profile_user,isp.mikrotik.profile.user,model_isp_mikrotik_profile,base.group_user,1,1,1,1
 access_isp_report_user,isp.report.user,model_isp_report,base.group_user,1,1,1,1
 access_isp_adopt_secret_wizard,isp.adopt.secret.wizard,model_isp_adopt_secret_wizard,base.group_user,1,1,1,1
+access_isp_discount_user,isp.discount.user,model_isp_discount,base.group_user,1,1,1,1

@@ -42,6 +42,8 @@
         'views/isp_installation_fee_views.xml',
         'views/isp_device_history_views.xml',
         'views/isp_report_views.xml',
+        'views/isp_invoice_views.xml',
+        'views/isp_discount_views.xml',
         
         # Wizards
         'wizards/isp_adopt_secret_wizard_views.xml',

@@ -37,8 +37,29 @@ class ISPSubscription(models.Model):
     
     amount = fields.Float('Jumlah Tagihan', related='package_id.price', store=True)
     
+    # Tambahkan field-field ini setelah field amount
+    discount_id = fields.Many2one('isp.discount', string='Diskon', tracking=True)
+    discount_type = fields.Selection(related='discount_id.type', string='Tipe Diskon', readonly=True)
+    discount_value = fields.Float(related='discount_id.value', string='Nilai Diskon', readonly=True)
+    discount_amount = fields.Float(
+        'Jumlah Diskon', 
+        compute='_compute_discount_amount',
+        store=True,
+        help="Jumlah diskon yang diberikan"
+    )
+    final_amount = fields.Float(
+        'Total Setelah Diskon',
+        compute='_compute_discount_amount',
+        store=True,
+        help="Jumlah tagihan setelah diskon"
+    )
+    
     last_notification_date = fields.Date('Tanggal Notifikasi Terakhir')
     mikrotik_user = fields.Char('Mikrotik Username', related='customer_id.cpe_ids.pppoe_username', readonly=True)
+    
+    # Tambahkan field untuk melacak invoice
+    invoice_ids = fields.One2many('account.move', 'subscription_id', string='Invoice', domain=[('move_type', '=', 'out_invoice')])
+    invoice_count = fields.Integer(string='Jumlah Invoice', compute='_compute_invoice_count')
     
     @api.model_create_multi
     def create(self, vals_list):
@@ -74,27 +95,155 @@ class ISPSubscription(models.Model):
                 # Jika tanggal jatuh tempo > hari dalam bulan, gunakan hari terakhir bulan
                 record.next_invoice_date = next_date + relativedelta(day=31)
 
+    @api.depends('amount', 'discount_id', 'discount_type', 'discount_value')
+    def _compute_discount_amount(self):
+        for record in self:
+            if not record.discount_id:
+                record.discount_amount = 0.0
+                record.final_amount = record.amount
+            else:
+                if record.discount_type == 'percentage':
+                    record.discount_amount = record.amount * (record.discount_value / 100)
+                else:  # fixed
+                    record.discount_amount = record.discount_value
+                record.final_amount = record.amount - record.discount_amount
+
     def _prepare_invoice_values(self):
-        """Menyiapkan nilai untuk pembuatan invoice"""
+        """Menyiapkan nilai untuk pembuatan invoice dengan diskon"""
         self.ensure_one()
-        return {
-            'partner_id': self.partner_id.id,
-            'move_type': 'out_invoice',
-            'invoice_date': fields.Date.today(),
-            'invoice_line_ids': [(0, 0, {
-                'name': f'Layanan Internet {self.package_id.name}',
+        
+        # Dapatkan jurnal penjualan
+        sale_journal = self.env['account.journal'].search([('type', '=', 'sale')], limit=1)
+        if not sale_journal:
+            raise ValidationError('Tidak ditemukan jurnal penjualan. Silakan buat jurnal penjualan terlebih dahulu.')
+            
+        # Dapatkan akun pendapatan dari produk/paket
+        income_account = self.package_id.product_tmpl_id.property_account_income_id or \
+                        self.package_id.product_tmpl_id.categ_id.property_account_income_categ_id
+        if not income_account:
+            raise ValidationError('Tidak ditemukan akun pendapatan pada produk/paket. Silakan atur akun pendapatan pada produk atau kategori produk.')
+        
+        # Siapkan line invoice utama
+        invoice_line = {
+            'name': f'Subscription {self.name} - {self.package_id.name}',
+            'quantity': 1,
+            'price_unit': self.amount,
+            'account_id': income_account.id,
+        }
+        
+        # Jika ada diskon, tambahkan line diskon
+        if self.discount_id and self.discount_amount > 0:
+            invoice_line_discount = {
+                'name': f'Diskon: {self.discount_id.name}',
                 'quantity': 1,
-                'price_unit': self.amount,
-            })],
+                'price_unit': -self.discount_amount,  # Nilai negatif untuk pengurangan
+                'account_id': self.discount_id.account_id.id,
+            }
+            invoice_lines = [(0, 0, invoice_line), (0, 0, invoice_line_discount)]
+        else:
+            invoice_lines = [(0, 0, invoice_line)]
+            
+        return {
+            'move_type': 'out_invoice',
+            'partner_id': self.partner_id.id,
+            'invoice_date': fields.Date.today(),
+            'subscription_id': self.id,
+            'journal_id': sale_journal.id,
+            'invoice_line_ids': invoice_lines,
+        }
+
+    def _check_existing_invoice(self):
+        """Cek apakah sudah ada invoice di bulan berjalan"""
+        self.ensure_one()
+        today = fields.Date.today()
+        existing_invoice = self.env['account.move'].search([
+            ('subscription_id', '=', self.id),
+            ('move_type', '=', 'out_invoice'),
+            ('invoice_date', '>=', today.replace(day=1)),  # awal bulan
+            ('invoice_date', '<=', (today.replace(day=1) + relativedelta(months=1, days=-1))),  # akhir bulan
+        ], limit=1)
+        return existing_invoice
+
+    def unlink_draft_invoice(self):
+        """Hapus invoice yang masih draft"""
+        self.ensure_one()
+        draft_invoices = self.invoice_ids.filtered(lambda i: i.state == 'draft')
+        if draft_invoices:
+            draft_invoices.unlink()
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sukses',
+                    'message': 'Invoice draft berhasil dihapus',
+                    'type': 'success',
+                }
+            }
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Peringatan',
+                'message': 'Tidak ada invoice draft yang dapat dihapus',
+                'type': 'warning',
+            }
         }
 
     def generate_invoice(self):
-        """Membuat invoice untuk subscription"""
+        """Generate invoice for subscription"""
         self.ensure_one()
-        invoice_values = self._prepare_invoice_values()
-        invoice = self.env['account.move'].create(invoice_values)
-        self.last_invoice_date = fields.Date.today()
-        return invoice
+        _logger.info(f'Generating invoice for subscription {self.name}')
+        
+        if not self.partner_id:
+            raise ValidationError('Partner/Contact harus diisi!')
+
+        # Cek invoice bulan berjalan
+        existing_invoice = self._check_existing_invoice()
+        if existing_invoice:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Peringatan',
+                    'message': f'Invoice untuk bulan {fields.Date.today().strftime("%B %Y")} sudah dibuat dengan nomor {existing_invoice.name}',
+                    'type': 'warning',
+                    'sticky': True,
+                }
+            }
+            
+        # Buat invoice baru
+        invoice_vals = self._prepare_invoice_values()
+        
+        _logger.info(f'Creating invoice with values: {invoice_vals}')
+        try:
+            invoice = self.env['account.move'].create(invoice_vals)
+            _logger.info(f'Invoice created with ID: {invoice.id}')
+            
+            # Update tanggal tagihan terakhir
+            self.write({
+                'last_invoice_date': fields.Date.today(),
+                'next_invoice_date': fields.Date.today() + relativedelta(months=self.recurring_interval)
+            })
+            
+            # Post message di chatter dengan link ke invoice
+            msg = f'Invoice <a href="#" data-oe-model="account.move" data-oe-id="{invoice.id}">{invoice.name}</a> berhasil dibuat'
+            self.message_post(body=msg, message_type='notification')
+            _logger.info(f'Invoice {invoice.name} berhasil dibuat')
+            
+            # Return action untuk membuka invoice
+            return {
+                'type': 'ir.actions.act_window',
+                'res_model': 'account.move',
+                'res_id': invoice.id,
+                'view_mode': 'form',
+                'target': 'current',
+            }
+            
+        except Exception as e:
+            error_msg = f'Gagal membuat invoice: {str(e)}'
+            _logger.error(error_msg)
+            self.message_post(body=error_msg)
+            raise ValidationError(error_msg)
 
     def cron_generate_invoices(self):
         """Cron job untuk membuat invoice otomatis"""
@@ -297,4 +446,20 @@ class ISPSubscription(models.Model):
 
     def action_cancel(self):
         self.ensure_one()
-        self.state = 'cancelled' 
+        self.state = 'cancelled'
+
+    @api.depends('invoice_ids')
+    def _compute_invoice_count(self):
+        for record in self:
+            record.invoice_count = len(record.invoice_ids)
+    
+    def action_view_invoices(self):
+        self.ensure_one()
+        return {
+            'name': 'Invoice',
+            'view_mode': 'tree,form',
+            'res_model': 'account.move',
+            'type': 'ir.actions.act_window',
+            'domain': [('subscription_id', '=', self.id), ('move_type', '=', 'out_invoice')],
+            'context': {'default_subscription_id': self.id, 'default_move_type': 'out_invoice'},
+        } 

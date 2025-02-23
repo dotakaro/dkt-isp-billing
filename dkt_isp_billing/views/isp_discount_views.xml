@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_isp_discount_tree" model="ir.ui.view">
+        <field name="name">isp.discount.tree</field>
+        <field name="model">isp.discount</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="type"/>
+                <field name="value"/>
+                <field name="account_id"/>
+                <field name="journal_id"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_isp_discount_form" model="ir.ui.view">
+        <field name="name">isp.discount.form</field>
+        <field name="model">isp.discount</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" placeholder="e.g. Diskon Akhir Tahun"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="type"/>
+                            <field name="value"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="account_id"/>
+                            <field name="journal_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Deskripsi" name="description">
+                            <field name="description" placeholder="Tambahkan deskripsi diskon di sini..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_isp_discount_search" model="ir.ui.view">
+        <field name="name">isp.discount.search</field>
+        <field name="model">isp.discount</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="code"/>
+                <separator/>
+                <filter string="Aktif" name="active" domain="[('active','=',True)]"/>
+                <filter string="Arsip" name="inactive" domain="[('active','=',False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Tipe" name="type" context="{'group_by':'type'}"/>
+                    <filter string="Akun" name="account" context="{'group_by':'account_id'}"/>
+                    <filter string="Jurnal" name="journal" context="{'group_by':'journal_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_isp_discount" model="ir.actions.act_window">
+        <field name="name">Diskon</field>
+        <field name="res_model">isp.discount</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Buat diskon pertama Anda
+            </p>
+            <p>
+                Buat berbagai jenis diskon untuk pelanggan Anda.
+            </p>
+        </field>
+    </record>
+</odoo> 

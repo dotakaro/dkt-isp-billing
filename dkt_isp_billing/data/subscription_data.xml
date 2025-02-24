@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Monthly Subscription Plan -->
+        <record id="monthly_subscription_plan" model="sale.subscription.plan">
+            <field name="name">Langganan Bulanan</field>
+            <field name="billing_period_value">1</field>
+            <field name="billing_period_unit">month</field>
+            <field name="auto_close_limit">15</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <!-- Yearly Subscription Plan -->
+        <record id="yearly_subscription_plan" model="sale.subscription.plan">
+            <field name="name">Langganan Tahunan</field>
+            <field name="billing_period_value">1</field>
+            <field name="billing_period_unit">year</field>
+            <field name="auto_close_limit">15</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+    </data>
+</odoo> 

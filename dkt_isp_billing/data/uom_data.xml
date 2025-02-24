@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Bandwidth Category -->
+        <record id="uom_categ_bandwidth" model="uom.category">
+            <field name="name">Bandwidth</field>
+        </record>
+
+        <!-- Data Usage Category -->
+        <record id="uom_categ_data" model="uom.category">
+            <field name="name">Data Usage</field>
+        </record>
+
+        <!-- Bandwidth Units -->
+        <record id="uom_mbps" model="uom.uom">
+            <field name="name">Mbps</field>
+            <field name="category_id" ref="uom_categ_bandwidth"/>
+            <field name="uom_type">reference</field>
+            <field name="rounding">0.01</field>
+            <field name="factor">1</field>
+        </record>
+
+        <record id="uom_kbps" model="uom.uom">
+            <field name="name">Kbps</field>
+            <field name="category_id" ref="uom_categ_bandwidth"/>
+            <field name="uom_type">smaller</field>
+            <field name="rounding">1</field>
+            <field name="factor">0.001</field>
+        </record>
+
+        <record id="uom_gbps" model="uom.uom">
+            <field name="name">Gbps</field>
+            <field name="category_id" ref="uom_categ_bandwidth"/>
+            <field name="uom_type">bigger</field>
+            <field name="rounding">0.001</field>
+            <field name="factor">1000</field>
+        </record>
+
+        <!-- Data Usage Units -->
+        <record id="uom_gb" model="uom.uom">
+            <field name="name">GB</field>
+            <field name="category_id" ref="uom_categ_data"/>
+            <field name="uom_type">reference</field>
+            <field name="rounding">0.01</field>
+            <field name="factor">1</field>
+        </record>
+
+        <record id="uom_mb" model="uom.uom">
+            <field name="name">MB</field>
+            <field name="category_id" ref="uom_categ_data"/>
+            <field name="uom_type">smaller</field>
+            <field name="rounding">1</field>
+            <field name="factor">0.001</field>
+        </record>
+
+        <record id="uom_tb" model="uom.uom">
+            <field name="name">TB</field>
+            <field name="category_id" ref="uom_categ_data"/>
+            <field name="uom_type">bigger</field>
+            <field name="rounding">0.001</field>
+            <field name="factor">1000</field>
+        </record>
+
+        <!-- Update Categories with Reference UoM -->
+        <record id="uom_categ_bandwidth" model="uom.category">
+            <field name="reference_uom_id" ref="uom_mbps"/>
+        </record>
+
+        <record id="uom_categ_data" model="uom.category">
+            <field name="reference_uom_id" ref="uom_gb"/>
+        </record>
+    </data>
+</odoo> 

@@ -8,7 +8,7 @@
             <tree>
                 <field name="name"/>
                 <field name="date"/>
-                <field name="customer_id"/>
+                <field name="partner_id"/>
                 <field name="device_name"/>
                 <field name="technician_id"/>
                 <field name="cost"/>
@@ -32,7 +32,7 @@
                         <group>
                             <field name="date"/>
                             <field name="cpe_id"/>
-                            <field name="customer_id"/>
+                            <field name="partner_id"/>
                             <field name="device_name"/>
                         </group>
                         <group>
@@ -53,7 +53,7 @@
     </record>
 
     <!-- Action -->
-    <record id="view_isp_device_history_action" model="ir.actions.act_window">
+    <record id="action_isp_device_history" model="ir.actions.act_window">
         <field name="name">Riwayat Perangkat</field>
         <field name="res_model">isp.device.history</field>
         <field name="view_mode">tree,form</field>

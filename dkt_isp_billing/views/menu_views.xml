@@ -6,7 +6,7 @@
               web_icon="dkt_isp_billing,static/description/icon.png"
               sequence="10"/>
               
-    <!-- Submenu untuk Pelanggan -->
+    <!-- Menu Pelanggan -->
     <menuitem id="menu_isp_customer_root"
               name="Pelanggan"
               parent="menu_isp_root"
@@ -15,78 +15,108 @@
     <menuitem id="menu_isp_customer"
               name="Daftar Pelanggan"
               parent="menu_isp_customer_root"
-              action="action_isp_customer"
+              action="base.action_partner_form"
               sequence="10"/>
               
-    <!-- Submenu untuk Layanan -->
-    <menuitem id="menu_isp_layanan_root"
+    <!-- Menu Layanan -->
+    <menuitem id="menu_isp_service_root"
               name="Layanan"
               parent="menu_isp_root"
               sequence="20"/>
               
     <menuitem id="menu_isp_package"
               name="Paket"
-              parent="menu_isp_layanan_root"
-              action="view_isp_package_action"
+              parent="menu_isp_service_root"
+              action="action_isp_package"
               sequence="10"/>
               
     <menuitem id="menu_isp_subscription"
               name="Subscription"
-              parent="menu_isp_layanan_root"
+              parent="menu_isp_service_root"
               action="action_isp_subscription"
               sequence="20"/>
 
     <menuitem id="menu_isp_installation_fee"
               name="Biaya Instalasi"
-              parent="menu_isp_layanan_root"
-              action="view_isp_installation_fee_action"
+              parent="menu_isp_service_root"
+              action="action_isp_installation_fee"
               sequence="50"/>
 
     <menuitem id="menu_isp_installation_type"
-              name="Jenis Instalasi"
-              parent="menu_isp_layanan_root"
-              action="view_isp_installation_type_action"
+              name="Tipe Instalasi"
+              parent="menu_isp_service_root"
+              action="action_isp_installation_type"
               sequence="30"/>
 
     <menuitem id="menu_isp_subscription_template"
               name="Template Berlangganan"
-              parent="menu_isp_layanan_root"
-              action="view_isp_subscription_template_action"
+              parent="menu_isp_service_root"
+              action="action_isp_subscription_template"
               sequence="40"/>
               
-    <!-- Submenu untuk Perangkat -->
-    <menuitem id="menu_isp_perangkat_root"
+    <!-- Menu Perangkat -->
+    <menuitem id="menu_isp_device_root"
               name="Perangkat"
               parent="menu_isp_root"
               sequence="30"/>
               
     <menuitem id="menu_isp_cpe"
               name="CPE"
-              parent="menu_isp_perangkat_root"
-              action="view_isp_cpe_action"
+              parent="menu_isp_device_root"
+              action="action_isp_cpe"
               sequence="10"/>
               
     <menuitem id="menu_isp_device_history"
               name="Riwayat Perangkat"
-              parent="menu_isp_perangkat_root"
-              action="view_isp_device_history_action"
+              parent="menu_isp_device_root"
+              action="action_isp_device_history"
               sequence="20"/>
 
-    <!-- Submenu untuk Konfigurasi -->
-    <menuitem id="menu_isp_konfigurasi_root"
-              name="Konfigurasi"
+    <!-- Menu Keuangan -->
+    <menuitem id="menu_isp_finance_root"
+              name="Keuangan"
               parent="menu_isp_root"
               sequence="40"/>
 
-    <menuitem id="menu_isp_mikrotik_config"
+    <menuitem id="menu_isp_invoice"
+              name="Invoice"
+              parent="menu_isp_finance_root"
+              action="action_isp_invoice_all"
+              sequence="20"/>
+
+    <menuitem id="menu_isp_invoice_draft"
+              name="Draft Invoice"
+              parent="menu_isp_finance_root"
+              action="action_isp_invoice_draft"
+              sequence="20"/>
+
+    <menuitem id="menu_isp_invoice_posted"
+              name="Posted Invoice"
+              parent="menu_isp_finance_root"
+              action="action_isp_invoice_posted"
+              sequence="30"/>
+
+    <menuitem id="menu_isp_discount"
+              name="Diskon"
+              parent="menu_isp_finance_root"
+              action="action_isp_discount"
+              sequence="40"/>
+
+    <!-- Menu Konfigurasi -->
+    <menuitem id="menu_isp_config_root"
+              name="Konfigurasi"
+              parent="menu_isp_root"
+              sequence="100"/>
+
+    <menuitem id="menu_isp_mikrotik"
               name="Mikrotik"
-              parent="menu_isp_konfigurasi_root"
+              parent="menu_isp_config_root"
               action="view_isp_mikrotik_config_action"
               sequence="10"/>
-              
+
     <menuitem id="menu_isp_mikrotik_profile"
-              name="PPPoE Profile"
-              parent="menu_isp_konfigurasi_root"
+              name="Profile Mikrotik"
+              parent="menu_isp_config_root"
               action="view_isp_mikrotik_profile_action"
               sequence="20"/>
 
@@ -99,36 +129,6 @@
     <menuitem id="menu_isp_report_list"
               name="Semua Laporan"
               parent="menu_isp_laporan_root"
-              action="view_isp_report_action"
+              action="action_isp_report"
               sequence="10"/>
-
-    <!-- Menu Keuangan -->
-    <menuitem id="menu_isp_keuangan_root"
-              name="Keuangan"
-              parent="menu_isp_root"
-              sequence="35"/>
-
-    <menuitem id="menu_isp_invoice"
-              name="Invoice Pelanggan"
-              parent="menu_isp_keuangan_root"
-              action="action_isp_invoice_all"
-              sequence="10"/>
-
-    <menuitem id="menu_isp_invoice_draft"
-              name="Draft Invoice"
-              parent="menu_isp_keuangan_root"
-              action="action_isp_invoice_draft"
-              sequence="20"/>
-
-    <menuitem id="menu_isp_invoice_posted"
-              name="Posted Invoice"
-              parent="menu_isp_keuangan_root"
-              action="action_isp_invoice_posted"
-              sequence="30"/>
-
-    <menuitem id="menu_isp_discount"
-              name="Diskon"
-              parent="menu_isp_keuangan_root"
-              action="action_isp_discount"
-              sequence="40"/>
 </odoo> 

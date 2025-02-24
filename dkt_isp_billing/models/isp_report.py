@@ -20,18 +20,70 @@ class ISPReport(models.Model):
         ('generated', 'Generated')
     ], default='draft', string='Status')
     
+    def _get_report_data(self):
+        self.ensure_one()
+        domain = []
+        
+        # Filter berdasarkan tanggal
+        if self.date_from:
+            domain.append(('create_date', '>=', self.date_from))
+        if self.date_to:
+            domain.append(('create_date', '<=', self.date_to))
+            
+        # Filter berdasarkan status
+        if self.state:
+            domain.append(('state', '=', self.state))
+            
+        # Ambil data pelanggan
+        partners = self.env['res.partner'].search(domain)
+        
+        # Hitung total
+        total = len(partners)
+        
+        # Format data untuk report
+        report_data = {
+            'total': total,
+            'customers': partners,
+            'date_from': self.date_from,
+            'date_to': self.date_to,
+            'state': self.state
+        }
+        
+        return report_data
+        
     def action_generate_report(self):
         self.ensure_one()
-        if self.report_type == 'customer':
-            return self._generate_customer_report()
-        elif self.report_type == 'cpe':
-            return self._generate_cpe_report()
-        elif self.report_type == 'package':
-            return self._generate_package_report()
-        elif self.report_type == 'financial':
-            return self._generate_financial_report()
-        elif self.report_type == 'profit_loss':
-            return self._generate_profit_loss_report()
+        
+        # Ambil data untuk report
+        report_data = self._get_report_data()
+        
+        # Generate report
+        report = self.env.ref('dkt_isp_billing.action_report_customer')
+        return report.report_action(self, data=report_data)
+        
+    def _get_customer_data(self):
+        """Get customer data for report"""
+        domain = []
+        
+        # Filter berdasarkan tanggal
+        if self.date_from:
+            domain.append(('create_date', '>=', self.date_from))
+        if self.date_to:
+            domain.append(('create_date', '<=', self.date_to))
+            
+        # Filter berdasarkan status
+        if self.state:
+            domain.append(('state', '=', self.state))
+            
+        # Ambil data pelanggan
+        partners = self.env['res.partner'].search(domain)
+        
+        return partners
+        
+    def _get_customer_by_ids(self, partner_ids):
+        """Get customer data by IDs"""
+        partners = self.env['res.partner'].browse(partner_ids)
+        return partners
     
     def _prepare_report_data(self):
         """Helper method to prepare report data"""
@@ -61,7 +113,7 @@ class ISPReport(models.Model):
                 ('create_date', '<=', self.date_to)
             ]
         
-        customers = self.env['isp.customer'].search(domain)
+        customers = self.env['res.partner'].search(domain)
         
         data = {
             'ids': self.ids,
@@ -71,7 +123,7 @@ class ISPReport(models.Model):
                 'date_to': self.date_to,
                 'report_type': self.report_type,
                 'name': self.name,
-                'customer_ids': customers.ids,
+                'partner_ids': customers.ids,
             }
         }
         
@@ -114,9 +166,9 @@ class ISPReportCustomer(models.AbstractModel):
                 return {}
                 
         # Get customers
-        customer_ids = data.get('form', {}).get('customer_ids', [])
-        if customer_ids:
-            customers = self.env['isp.customer'].browse(customer_ids)
+        partner_ids = data.get('form', {}).get('partner_ids', [])
+        if partner_ids:
+            customers = self.env['res.partner'].browse(partner_ids)
         else:
             domain = []
             if report.date_from and report.date_to:
@@ -127,7 +179,7 @@ class ISPReportCustomer(models.AbstractModel):
                     ('create_date', '>=', report.date_from),
                     ('create_date', '<=', report.date_to)
                 ]
-            customers = self.env['isp.customer'].search(domain)
+            customers = self.env['res.partner'].search(domain)
 
         return {
             'doc_ids': docids,

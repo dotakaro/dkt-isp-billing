@@ -28,11 +28,11 @@
                         <t t-if="customers">
                             <t t-foreach="customers" t-as="customer">
                                 <tr>
-                                    <td><t t-esc="customer.customer_id or ''"/></td>
+                                    <td><t t-esc="customer.id or ''"/></td>
                                     <td><t t-esc="customer.name or ''"/></td>
                                     <td><t t-esc="customer.identity_number or ''"/></td>
                                     <td><t t-esc="customer.mobile or ''"/></td>
-                                    <td><t t-esc="customer.address or ''"/></td>
+                                    <td><t t-esc="customer.street or ''"/></td>
                                     <td><t t-esc="', '.join(customer.subscription_ids.filtered(lambda s: s.state == 'open').mapped('package_id.name'))"/></td>
                                     <td><t t-esc="customer.state or ''"/></td>
                                     <td><t t-esc="customer.create_date" t-options='{"widget": "date"}'/></td>
@@ -86,7 +86,7 @@
                     <tbody>
                         <t t-foreach="cpes" t-as="cpe">
                             <tr>
-                                <td><t t-esc="cpe.customer_id.name"/></td>
+                                <td><t t-esc="cpe.partner_id.name"/></td>
                                 <td><t t-esc="cpe.name"/></td>
                                 <td><t t-esc="cpe.mac_address"/></td>
                                 <td><t t-esc="cpe.ip_address"/></td>
@@ -136,9 +136,9 @@
                             <tr>
                                 <td><t t-esc="package.name"/></td>
                                 <td><t t-esc="package.price" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
-                                <td><t t-esc="package.speed_up"/> Mbps</td>
-                                <td><t t-esc="package.speed_down"/> Mbps</td>
-                                <td><t t-esc="package.customer_count"/></td>
+                                <td><t t-esc="package.bandwidth_up"/> Mbps</td>
+                                <td><t t-esc="package.bandwidth_down"/> Mbps</td>
+                                <td><t t-esc="len(package.subscription_ids.filtered(lambda s: s.state == 'open'))"/></td>
                             </tr>
                         </t>
                     </tbody>
@@ -190,7 +190,7 @@
                                             <t t-esc="filtered_invoice[0].invoice_date" t-options='{"widget": "date"}'/>
                                         </t>
                                     </td>
-                                    <td><t t-esc="sub.customer_id.name"/></td>
+                                    <td><t t-esc="sub.partner_id.name"/></td>
                                     <td><t t-esc="sub.package_id.name"/></td>
                                     <td><t t-esc="sub.final_amount" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
                                     <td><t t-esc="sub.state"/></td>
@@ -231,7 +231,7 @@
                                 <tr>
                                     <td><t t-esc="inst.date" t-options='{"widget": "date"}'/></td>
                                     <td><t t-esc="inst.name"/></td>
-                                    <td><t t-esc="inst.customer_id.name"/></td>
+                                    <td><t t-esc="inst.partner_id.name"/></td>
                                     <td><t t-esc="inst.installation_type_id.name"/></td>
                                     <td><t t-esc="inst.amount" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
                                     <td><t t-esc="inst.state"/></td>
@@ -273,9 +273,7 @@
     <template id="report_financial">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
-                <t t-call="dkt_isp_billing.report_financial_document">
-                    <t t-set="company" t-value="doc.env.company"/>
-                </t>
+                <t t-call="dkt_isp_billing.report_financial_document"/>
             </t>
         </t>
     </template>

@@ -12,11 +12,11 @@ class ISPSubscription(models.Model):
     _description = 'ISP Subscription'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
-    name = fields.Char('Nomor', readonly=True, copy=False)
-    customer_id = fields.Many2one('isp.customer', string='Pelanggan', required=True, tracking=True)
-    partner_id = fields.Many2one(related='customer_id.partner_id', store=True)
+    name = fields.Char('Nomor Subscription', readonly=True)
+    partner_id = fields.Many2one('res.partner', string='Pelanggan', required=True, tracking=True,
+                                domain=[('customer_rank', '>', 0)])
     cpe_id = fields.Many2one('isp.cpe', string='CPE', required=True, tracking=True,
-                          domain="[('customer_id', '=', customer_id), ('state', 'in', ['draft', 'active'])]")
+                            domain="[('partner_id', '=', partner_id)]")
     package_id = fields.Many2one('isp.package', string='Paket', required=True, tracking=True)
     
     date_start = fields.Date('Tanggal Mulai', default=fields.Date.today, required=True, tracking=True)
@@ -332,7 +332,7 @@ class ISPSubscription(models.Model):
         self.ensure_one()
         
         # Skip jika pelanggan tidak punya nomor HP
-        if not self.customer_id.mobile:
+        if not self.partner_id.mobile:
             _logger.info('Pelanggan tidak memiliki nomor HP')
             return False
 
@@ -352,7 +352,7 @@ class ISPSubscription(models.Model):
 
             # Siapkan data untuk template
             values = {
-                'customer_name': self.customer_id.name,
+                'customer_name': self.partner_id.name,
                 'package_name': self.package_id.name,
                 'amount': "{:,.2f}".format(self.amount),
                 'due_date': self.next_invoice_date.strftime('%d-%m-%Y') if self.next_invoice_date else '',
@@ -364,7 +364,7 @@ class ISPSubscription(models.Model):
                 active_id=self.id,
             ).create({
                 'template_id': template.id,
-                'phone_number': self.customer_id.mobile,
+                'phone_number': self.partner_id.mobile,
                 'composition_mode': 'comment',
                 'res_model': self._name,
                 'res_id': self.id,
@@ -464,8 +464,8 @@ class ISPSubscription(models.Model):
                     self.cpe_id.write({'state': 'open'})
                     
                 # Update status pelanggan jika belum aktif
-                if self.customer_id.state != 'open':
-                    self.customer_id.write({'state': 'open'})
+                if self.partner_id.state != 'active':
+                    self.partner_id.write({'state': 'active'})
                     
                 # Tampilkan notifikasi sukses
                 self.env['bus.bus']._sendone(
@@ -579,13 +579,13 @@ class ISPSubscription(models.Model):
                     
                     # Cek apakah masih ada CPE open untuk pelanggan ini
                     active_cpes = self.env['isp.cpe'].search([
-                        ('customer_id', '=', self.customer_id.id),
+                        ('partner_id', '=', self.partner_id.id),
                         ('state', '=', 'open')
                     ])
                     
                     if not active_cpes:
                         # Jika tidak ada CPE open lain, isolir pelanggan
-                        self.customer_id.write({'state': 'isolated'})
+                        self.partner_id.write({'state': 'isolated'})
                 
                 # Tampilkan notifikasi sukses
                 self.env['bus.bus']._sendone(
@@ -675,13 +675,13 @@ class ISPSubscription(models.Model):
                     
                     # Cek apakah masih ada CPE aktif untuk pelanggan ini
                     active_cpes = self.env['isp.cpe'].search([
-                        ('customer_id', '=', self.customer_id.id),
+                        ('partner_id', '=', self.partner_id.id),
                         ('state', 'in', ['open', 'isolated'])
                     ])
                     
                     if not active_cpes:
                         # Reset pelanggan ke draft
-                        self.customer_id.write({'state': 'draft'})
+                        self.partner_id.write({'state': 'draft'})
                 
                 # Tampilkan notifikasi sukses
                 self.env['bus.bus']._sendone(

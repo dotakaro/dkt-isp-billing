@@ -9,7 +9,7 @@ class ISPDeviceHistory(models.Model):
     name = fields.Char('Referensi', readonly=True)
     date = fields.Date('Tanggal', required=True, default=fields.Date.context_today, tracking=True)
     cpe_id = fields.Many2one('isp.cpe', string='Perangkat', required=True, tracking=True)
-    customer_id = fields.Many2one(related='cpe_id.customer_id', store=True)
+    partner_id = fields.Many2one(related='cpe_id.partner_id', store=True, string='Pelanggan')
     device_name = fields.Char('Nama Alat', required=True, tracking=True)
     replacement_reason = fields.Text('Alasan Pergantian', required=True, tracking=True)
     ownership = fields.Selection([

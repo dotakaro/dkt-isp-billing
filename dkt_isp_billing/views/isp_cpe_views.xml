@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <tree string="CPE" decoration-danger="state=='draft'" decoration-success="state=='open'" decoration-warning="state=='isolated'" decoration-muted="state=='terminated'">
                 <field name="name"/>
-                <field name="customer_id"/>
+                <field name="partner_id"/>
                 <field name="mac_address"/>
                 <field name="ip_address"/>
                 <field name="pppoe_username"/>
@@ -45,6 +45,16 @@
                             type="object"
                             class="btn-info"
                             invisible="connection_type != 'pppoe'"/>
+                    <button name="action_start_monitoring" 
+                            string="Start Monitoring" 
+                            type="object"
+                            class="btn-success"
+                            invisible="connection_type != 'pppoe' or is_monitoring"/>
+                    <button name="action_stop_monitoring" 
+                            string="Stop Monitoring" 
+                            type="object"
+                            class="btn-danger"
+                            invisible="connection_type != 'pppoe' or not is_monitoring"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -55,7 +65,7 @@
                     </div>
                     <group>
                         <group>
-                            <field name="customer_id"/>
+                            <field name="partner_id"/>
                             <field name="mac_address"/>
                             <field name="ip_address"/>
                             <field name="outdoor_unit"/>
@@ -87,7 +97,7 @@
                             </group>
                         </page>
                         <page string="Subscription" name="subscription">
-                            <field name="subscription_ids" context="{'default_customer_id': customer_id, 'default_cpe_id': id}">
+                            <field name="subscription_ids" context="{'default_partner_id': partner_id, 'default_cpe_id': id}">
                                 <tree>
                                     <field name="name"/>
                                     <field name="package_id"/>
@@ -201,7 +211,7 @@
         <field name="arch" type="xml">
             <search string="CPE">
                 <field name="name"/>
-                <field name="customer_id"/>
+                <field name="partner_id"/>
                 <field name="mac_address"/>
                 <field name="ip_address"/>
                 <field name="pppoe_username"/>
@@ -214,7 +224,7 @@
                 <filter string="Connected" name="connected" domain="[('pppoe_status', '=', 'connected')]"/>
                 <filter string="Disconnected" name="disconnected" domain="[('pppoe_status', '=', 'disconnected')]"/>
                 <group expand="0" string="Group By">
-                    <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'customer_id'}"/>
+                    <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'partner_id'}"/>
                     <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
                     <filter string="Status PPPoE" name="group_by_pppoe" context="{'group_by': 'pppoe_status'}"/>
                 </group>
@@ -223,7 +233,7 @@
     </record>
 
     <!-- Action -->
-    <record id="view_isp_cpe_action" model="ir.actions.act_window">
+    <record id="action_isp_cpe" model="ir.actions.act_window">
         <field name="name">CPE</field>
         <field name="res_model">isp.cpe</field>
         <field name="view_mode">tree,form</field>
@@ -233,5 +243,12 @@
                 Buat CPE baru
             </p>
         </field>
+    </record>
+
+    <!-- Assets -->
+    <record id="dkt_isp_billing_pppoe_monitor_js" model="ir.asset">
+        <field name="name">PPPoE Monitor JS</field>
+        <field name="bundle">web.assets_backend</field>
+        <field name="path">/dkt_isp_billing/static/src/js/pppoe_monitor.js</field>
     </record>
 </odoo> 

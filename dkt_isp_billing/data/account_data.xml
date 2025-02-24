@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Akun Pendapatan -->
+        <record id="revenue_account" model="account.account">
+            <field name="name">Pendapatan Layanan ISP</field>
+            <field name="code">4001</field>
+            <field name="account_type">income</field>
+            <field name="reconcile">False</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <!-- Akun Biaya -->
+        <record id="expense_account" model="account.account">
+            <field name="name">Biaya Layanan ISP</field>
+            <field name="code">5001</field>
+            <field name="account_type">expense_direct_cost</field>
+            <field name="reconcile">False</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <!-- Journal untuk Pendapatan -->
+        <record id="deferred_revenue_journal" model="account.journal">
+            <field name="name">Pendapatan ISP</field>
+            <field name="code">PISP</field>
+            <field name="type">general</field>
+            <field name="default_account_id" ref="revenue_account"/>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+    </data>
+</odoo> 

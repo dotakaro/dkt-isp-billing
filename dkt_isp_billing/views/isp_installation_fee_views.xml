@@ -8,7 +8,7 @@
             <tree decoration-info="state == 'draft'" decoration-success="state == 'paid'" decoration-muted="state == 'cancelled'">
                 <field name="name"/>
                 <field name="date"/>
-                <field name="customer_id"/>
+                <field name="partner_id"/>
                 <field name="installation_type_id"/>
                 <field name="amount"/>
                 <field name="state"/>
@@ -40,7 +40,7 @@
                     </div>
                     <group>
                         <group>
-                            <field name="customer_id"/>
+                            <field name="partner_id"/>
                             <field name="installation_type_id"/>
                             <field name="date"/>
                         </group>
@@ -66,7 +66,7 @@
     </record>
 
     <!-- Action -->
-    <record id="view_isp_installation_fee_action" model="ir.actions.act_window">
+    <record id="action_isp_installation_fee" model="ir.actions.act_window">
         <field name="name">Biaya Instalasi</field>
         <field name="res_model">isp.installation.fee</field>
         <field name="view_mode">tree,form</field>

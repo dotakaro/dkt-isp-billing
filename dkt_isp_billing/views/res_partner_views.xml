@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Action untuk menampilkan pelanggan -->
+    <record id="action_isp_customer" model="ir.actions.act_window">
+        <field name="name">Pelanggan</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('customer_rank', '>', 0)]</field>
+        <field name="context">{
+            'default_customer_rank': 1,
+            'search_default_customer': 1,
+            'res_partner_search_mode': 'customer',
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Buat pelanggan baru
+            </p>
+        </field>
+    </record>
+    
+    <!-- Tree View -->
+    <record id="view_isp_customer_tree" model="ir.ui.view">
+        <field name="name">res.partner.isp.tree</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <tree string="Pelanggan">
+                <field name="name"/>
+                <field name="street"/>
+                <field name="mobile"/>
+                <field name="email"/>
+                <field name="subscription_count"/>
+                <field name="cpe_count"/>
+                <field name="total_outstanding"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+    
+    <!-- Form View -->
+    <record id="view_isp_customer_form" model="ir.ui.view">
+        <field name="name">res.partner.isp.form</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="before">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+            </xpath>
+            
+            <xpath expr="//notebook" position="inside">
+                <page string="ISP" name="isp">
+                    <group>
+                        <group string="Informasi ISP">
+                            <field name="subscription_count"/>
+                            <field name="cpe_count"/>
+                            <field name="total_outstanding"/>
+                        </group>
+                        <group string="Kontak Darurat">
+                            <field name="emergency_contact"/>
+                            <field name="emergency_phone"/>
+                        </group>
+                    </group>
+                    <group string="Catatan">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Search View -->
+    <record id="view_isp_customer_search" model="ir.ui.view">
+        <field name="name">res.partner.isp.search</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <search string="Cari Pelanggan">
+                <field name="name"/>
+                <field name="street"/>
+                <field name="mobile"/>
+                <field name="email"/>
+                <separator/>
+                <filter string="Aktif" name="active" domain="[('state', '=', 'active')]"/>
+                <filter string="Non-Aktif" name="inactive" domain="[('state', '=', 'inactive')]"/>
+                <filter string="Terisolir" name="isolated" domain="[('state', '=', 'isolated')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo> 

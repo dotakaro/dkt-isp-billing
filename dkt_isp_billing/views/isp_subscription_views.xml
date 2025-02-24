@@ -10,7 +10,7 @@
                   decoration-warning="state == 'isolated'"
                   decoration-danger="state == 'terminated'">
                 <field name="name"/>
-                <field name="customer_id"/>
+                <field name="partner_id"/>
                 <field name="cpe_id"/>
                 <field name="package_id"/>
                 <field name="date_start"/>
@@ -82,7 +82,7 @@
                     </div>
                     <group>
                         <group>
-                            <field name="customer_id" readonly="state != 'draft'"/>
+                            <field name="partner_id" readonly="state != 'draft'"/>
                             <field name="cpe_id" readonly="state != 'draft'"/>
                             <field name="package_id" readonly="state != 'draft'"/>
                             <field name="date_start" readonly="state != 'draft'"/>
@@ -127,12 +127,12 @@
                                             string="Post" 
                                             type="object" 
                                             icon="fa-check"
-                                            attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                                            invisible="state != 'draft'"/>
                                     <button name="action_register_payment"
                                             string="Pay"
                                             type="object"
                                             icon="fa-money"
-                                            attrs="{'invisible': ['|', ('state', '!=', 'posted'), ('payment_state', '=', 'paid')]}"/>
+                                            invisible="state != 'posted' or payment_state == 'paid'"/>
                                 </tree>
                                 <form>
                                     <header>
@@ -140,12 +140,12 @@
                                                 string="Post" 
                                                 type="object"
                                                 class="oe_highlight"
-                                                attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+                                                invisible="state != 'draft'"/>
                                         <button name="action_register_payment"
                                                 string="Register Payment"
                                                 type="object"
                                                 class="oe_highlight"
-                                                attrs="{'invisible': ['|', ('state', '!=', 'posted'), ('payment_state', '=', 'paid')]}"/>
+                                                invisible="state != 'posted' or payment_state == 'paid'"/>
                                         <field name="state" widget="statusbar"/>
                                     </header>
                                     <sheet>
@@ -197,7 +197,7 @@
         <field name="arch" type="xml">
             <search>
                 <field name="name"/>
-                <field name="customer_id"/>
+                <field name="partner_id"/>
                 <field name="package_id"/>
                 <separator/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
@@ -218,7 +218,7 @@
                         name="has_overdue_invoice" 
                         domain="[('invoice_ids.payment_state', 'in', ['not_paid', 'partial']), ('invoice_ids.invoice_date_due', '&lt;', context_today)]"/>
                 <group expand="0" string="Group By">
-                    <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'customer_id'}"/>
+                    <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'partner_id'}"/>
                     <filter string="Paket" name="group_by_package" context="{'group_by': 'package_id'}"/>
                     <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
                 </group>

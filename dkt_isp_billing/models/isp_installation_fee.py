@@ -8,8 +8,9 @@ class ISPInstallationFee(models.Model):
     _order = 'date desc'
 
     name = fields.Char('Nomor', readonly=True, copy=False)
-    customer_id = fields.Many2one('isp.customer', string='Pelanggan', required=True, tracking=True)
-    installation_type_id = fields.Many2one('isp.installation.type', string='Jenis Instalasi', required=True, tracking=True)
+    partner_id = fields.Many2one('res.partner', string='Pelanggan', required=True, tracking=True,
+                                domain=[('customer_rank', '>', 0)])
+    installation_type_id = fields.Many2one('isp.installation.type', string='Tipe Instalasi', required=True, tracking=True)
     date = fields.Date('Tanggal', default=fields.Date.today, required=True, tracking=True)
     amount = fields.Float('Jumlah', required=True, tracking=True)
     state = fields.Selection([
@@ -45,7 +46,7 @@ class ISPInstallationFee(models.Model):
         self.ensure_one()
         invoice_vals = {
             'move_type': 'out_invoice',
-            'partner_id': self.customer_id.partner_id.id,
+            'partner_id': self.partner_id.id,
             'invoice_date': self.date,
             'invoice_line_ids': [(0, 0, {
                 'name': f'Biaya Instalasi - {self.installation_type_id.name}',

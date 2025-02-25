@@ -443,20 +443,33 @@ class ISPCPE(models.Model):
                         stats = interface_stats[0]
                         if not isinstance(stats, dict):
                             stats = {}
+                
+                # Ambil nilai caller-id (MAC address) dan address (IP address)
+                caller_id = active.get('caller-id', '')
+                pppoe_address = active.get('address', '')
             
                 # Update status
-                self.write({
+                update_vals = {
                     'pppoe_status': 'connected',
                     'pppoe_uptime': active.get('uptime', ''),
-                    'pppoe_address': active.get('address', ''),
-                    'pppoe_caller_id': active.get('caller-id', ''),
+                    'pppoe_address': pppoe_address,
+                    'pppoe_caller_id': caller_id,
                     'pppoe_session_id': active.get('session-id', ''),
                     'current_upload_rate': self._format_rate(stats.get('tx-byte', 0)) + ' kbps',
                     'current_download_rate': self._format_rate(stats.get('rx-byte', 0)) + ' kbps',
                     'upload_usage': float(stats.get('tx-byte', 0)) / (1024 * 1024),
                     'download_usage': float(stats.get('rx-byte', 0)) / (1024 * 1024),
                     'last_update': fields.Datetime.now()
-                })
+                }
+                
+                # Update MAC address dan IP address jika ada nilai baru
+                if caller_id and not self.mac_address:
+                    update_vals['mac_address'] = caller_id
+                    
+                if pppoe_address and not self.ip_address:
+                    update_vals['ip_address'] = pppoe_address
+                
+                self.write(update_vals)
             else:
                 self.write({
                     'pppoe_status': 'disconnected',
@@ -487,13 +500,36 @@ class ISPCPE(models.Model):
     def action_check_pppoe(self):
         """Action untuk mengecek status PPPoE"""
         self.ensure_one()
-        self.update_pppoe_status()
+        
+        # Update status PPPoE (juga akan update MAC dan IP jika belum diisi)
+        result = self.update_pppoe_status()
+        
+        # Jika berhasil dan status terhubung, selalu update MAC dan IP address
+        if result and self.pppoe_status == 'connected':
+            # Pastikan MAC address dan IP address selalu terupdate dengan yang terbaru
+            update_vals = {}
+            
+            if self.pppoe_caller_id and (not self.mac_address or self.mac_address != self.pppoe_caller_id):
+                update_vals['mac_address'] = self.pppoe_caller_id
+                
+            if self.pppoe_address and (not self.ip_address or self.ip_address != self.pppoe_address):
+                update_vals['ip_address'] = self.pppoe_address
+                
+            if update_vals:
+                self.write(update_vals)
+        
+        # Pesan berbeda tergantung status
+        if self.pppoe_status == 'connected':
+            message = f'Status PPPoE: {self.pppoe_status}. MAC Address dan IP Address telah diperbarui.'
+        else:
+            message = f'Status PPPoE: {self.pppoe_status}.'
+            
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Info',
-                'message': f'Status PPPoE: {self.pppoe_status}',
+                'message': message,
                 'type': 'info',
             }
         }

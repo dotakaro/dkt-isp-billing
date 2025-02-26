@@ -14,6 +14,7 @@
                             display="always"/>
                 </header>
                 <field name="name"/>
+                <field name="mikrotik_config_id"/>
                 <field name="rate_limit"/>
                 <field name="local_address"/>
                 <field name="remote_address"/>
@@ -49,6 +50,7 @@
                     </div>
                     <group>
                         <group>
+                            <field name="mikrotik_config_id" options="{'no_create': True}"/>
                             <field name="rate_limit"/>
                             <field name="local_address"/>
                             <field name="remote_address"/>

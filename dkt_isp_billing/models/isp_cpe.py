@@ -24,6 +24,10 @@ class ISPCPE(models.Model):
         ('static', 'Static IP'),
         ('dhcp', 'DHCP')
     ], string='Tipe Koneksi', default='pppoe', required=True, tracking=True)
+    mikrotik_config_id = fields.Many2one('isp.mikrotik.config', string='Router Mikrotik', 
+                                        tracking=True, 
+                                        help="Router Mikrotik tempat user PPPoE dibuat",
+                                        compute='_compute_mikrotik_config_id', store=True, readonly=False)
     pppoe_username = fields.Char('PPPoE Username', tracking=True)
     pppoe_password = fields.Char('PPPoE Password', tracking=True)
     ownership = fields.Selection([
@@ -130,6 +134,16 @@ class ISPCPE(models.Model):
             chars = string.ascii_letters + string.digits
             self.pppoe_password = ''.join(random.choice(chars) for _ in range(8))
     
+    @api.depends('subscription_id', 'subscription_id.package_id', 'subscription_id.package_id.profile_id')
+    def _compute_mikrotik_config_id(self):
+        for record in self:
+            if record.subscription_id and record.subscription_id.package_id and record.subscription_id.package_id.profile_id:
+                # Ambil router Mikrotik dari profil yang terkait dengan paket
+                record.mikrotik_config_id = record.subscription_id.package_id.profile_id.mikrotik_config_id
+            else:
+                # Jika tidak ada paket atau profil, gunakan router Mikrotik default
+                record.mikrotik_config_id = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+
     def _check_mikrotik_secret(self):
         """
         Cek apakah secret sudah ada di Mikrotik dan statusnya di Odoo
@@ -146,7 +160,8 @@ class ISPCPE(models.Model):
         if not self.pppoe_username:
             return False, False, 'PPPoE Username tidak boleh kosong!', None
             
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        # Gunakan router Mikrotik yang terkait dengan CPE ini
+        mikrotik = self.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
         if not mikrotik:
             return False, False, 'Konfigurasi Mikrotik tidak ditemukan!', None
             
@@ -235,7 +250,7 @@ class ISPCPE(models.Model):
                 }
                 
             # Jika secret belum ada, buat baru di Mikrotik
-            mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+            mikrotik = self.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
             if not mikrotik:
                 raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
                 

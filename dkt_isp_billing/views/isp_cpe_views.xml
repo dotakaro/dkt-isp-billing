@@ -75,6 +75,7 @@
                         <group>
                             <field name="pppoe_username" invisible="connection_type != 'pppoe'"/>
                             <field name="pppoe_password" password="1" invisible="connection_type != 'pppoe'"/>
+                            <field name="mikrotik_config_id" options="{'no_create': True}" invisible="connection_type != 'pppoe'"/>
                             <field name="ownership"/>
                         </group>
                     </group>

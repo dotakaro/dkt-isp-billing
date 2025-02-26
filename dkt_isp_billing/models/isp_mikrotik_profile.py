@@ -8,6 +8,9 @@ class ISPMikrotikProfile(models.Model):
 
     name = fields.Char('Nama Profile', required=True, tracking=True)
     mikrotik_id = fields.Char('ID di Mikrotik', readonly=True)
+    mikrotik_config_id = fields.Many2one('isp.mikrotik.config', string='Router Mikrotik', 
+                                        required=True, tracking=True,
+                                        help="Router Mikrotik tempat profile ini dibuat")
     rate_limit = fields.Char('Rate Limit', required=True, tracking=True,
                           help="Format: [upload]M/[download]M (contoh: 10M/20M)")
     local_address = fields.Char('Local Address', tracking=True)
@@ -25,7 +28,7 @@ class ISPMikrotikProfile(models.Model):
 
     def action_sync_from_mikrotik(self):
         """Sinkronisasi profile dari Mikrotik Router"""
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        mikrotik = self.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
         if not mikrotik:
             raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
             
@@ -38,10 +41,11 @@ class ISPMikrotikProfile(models.Model):
             profiles = profile_api.get()
             
             for profile in profiles:
-                existing = self.search([('name', '=', profile['name'])], limit=1)
+                existing = self.search([('name', '=', profile['name']), ('mikrotik_config_id', '=', mikrotik.id)], limit=1)
                 vals = {
                     'name': profile['name'],
                     'mikrotik_id': profile.get('id', ''),
+                    'mikrotik_config_id': mikrotik.id,
                     'rate_limit': profile.get('rate-limit', ''),
                     'local_address': profile.get('local-address', ''),
                     'remote_address': profile.get('remote-address', ''),
@@ -72,7 +76,7 @@ class ISPMikrotikProfile(models.Model):
     def action_create_in_mikrotik(self):
         """Membuat profile baru di Mikrotik Router"""
         self.ensure_one()
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        mikrotik = self.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
         if not mikrotik:
             raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
             

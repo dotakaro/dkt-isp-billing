@@ -745,4 +745,12 @@ class ISPSubscription(models.Model):
             'search_default_overdue': 1,
         })
         
-        return action 
+        return action
+
+    @api.onchange('package_id')
+    def _onchange_package_id(self):
+        if self.package_id:
+            self.amount = self.package_id.price
+            # Jika ada CPE terkait, perbarui mikrotik_config_id berdasarkan profile paket
+            if self.cpe_id and self.cpe_id.connection_type == 'pppoe' and self.package_id.profile_id.mikrotik_config_id:
+                self.cpe_id.mikrotik_config_id = self.package_id.profile_id.mikrotik_config_id 

@@ -10,4 +10,5 @@ from . import isp_mikrotik
 from . import isp_mikrotik_profile
 from . import isp_discount
 from . import isp_report
-from . import account_move 
+from . import account_move
+from . import isp_installation_wizard 

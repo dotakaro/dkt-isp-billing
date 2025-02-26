@@ -122,6 +122,11 @@ class ISPMikrotikConfig(models.Model):
 
     def get_connection(self):
         self.ensure_one()
+        
+        # Skip koneksi jika sedang loading data awal (init mode)
+        if self.env.context.get('install_mode'):
+            return True
+            
         try:
             host, port = self._parse_host_port()
             _logger.info(f'Membuat koneksi ke {host}:{port}')

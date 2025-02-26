@@ -1,5 +1,8 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class ISPInstallationFee(models.Model):
     _name = 'isp.installation.fee'
@@ -15,6 +18,7 @@ class ISPInstallationFee(models.Model):
     amount = fields.Float('Jumlah', required=True, tracking=True)
     state = fields.Selection([
         ('draft', 'Draft'),
+        ('confirmed', 'Terkonfirmasi'),
         ('paid', 'Lunas'),
         ('cancelled', 'Dibatalkan')
     ], string='Status', default='draft', tracking=True)
@@ -38,21 +42,54 @@ class ISPInstallationFee(models.Model):
     def action_confirm(self):
         for record in self:
             if record.state == 'draft':
+                # Buat invoice terlebih dahulu
+                invoice = record.create_invoice()
+                # Update state menjadi confirmed
                 record.state = 'confirmed'
-                # Buat invoice
-                record._create_invoice()
+                # Log untuk debugging
+                _logger.info(f'Biaya instalasi {record.name} dikonfirmasi dengan invoice {invoice.name if invoice else "tidak ada"}')
+                
+    def action_set_paid(self):
+        for record in self:
+            if record.state in ['draft', 'confirmed']:
+                record.state = 'paid'
+                _logger.info(f'Biaya instalasi {record.name} ditandai sebagai lunas')
 
-    def _create_invoice(self):
+    def create_invoice(self):
         self.ensure_one()
+        # Cari journal penjualan
+        sale_journal = self.env['account.journal'].search([('type', '=', 'sale')], limit=1)
+        if not sale_journal:
+            raise ValidationError('Tidak ditemukan jurnal penjualan. Silakan buat jurnal penjualan terlebih dahulu.')
+        
+        # Cari akun pendapatan
+        revenue_account = self.env.ref('dkt_isp_billing.revenue_account', raise_if_not_found=False)
+        if not revenue_account:
+            revenue_account = self.env['account.account'].search([
+                ('account_type', '=', 'income')
+            ], limit=1)
+            
+        if not revenue_account:
+            raise ValidationError('Tidak ditemukan akun pendapatan. Silakan buat akun pendapatan terlebih dahulu.')
+            
         invoice_vals = {
             'move_type': 'out_invoice',
             'partner_id': self.partner_id.id,
             'invoice_date': self.date,
+            'journal_id': sale_journal.id,
             'invoice_line_ids': [(0, 0, {
                 'name': f'Biaya Instalasi - {self.installation_type_id.name}',
                 'quantity': 1,
                 'price_unit': self.amount,
+                'account_id': revenue_account.id,
             })],
         }
+        
+        _logger.info(f"Membuat invoice dengan nilai: {invoice_vals}")
         invoice = self.env['account.move'].create(invoice_vals)
-        self.invoice_id = invoice.id 
+        self.invoice_id = invoice.id
+        
+        # Log untuk debugging
+        _logger.info(f'Invoice dibuat: {invoice.name} untuk biaya instalasi {self.name}')
+        
+        return invoice 

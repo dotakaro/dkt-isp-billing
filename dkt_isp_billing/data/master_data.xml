@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Data Master untuk Konfigurasi Mikrotik -->
+    <record id="isp_mikrotik_config_default" model="isp.mikrotik.config">
+        <field name="name">Mikrotik Default</field>
+        <field name="host">127.0.0.1:8728</field>
+        <field name="username">admin</field>
+        <field name="password">password</field>
+        <field name="active" eval="False"/>
+    </record>
+    
+    <!-- Data Master untuk PPPoE Profile -->
+    <record id="isp_mikrotik_profile_basic" model="isp.mikrotik.profile">
+        <field name="name">profile-basic</field>
+        <field name="rate_limit">10M/10M</field>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <record id="isp_mikrotik_profile_standard" model="isp.mikrotik.profile">
+        <field name="name">profile-standard</field>
+        <field name="rate_limit">20M/20M</field>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <record id="isp_mikrotik_profile_premium" model="isp.mikrotik.profile">
+        <field name="name">profile-premium</field>
+        <field name="rate_limit">50M/50M</field>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <!-- Data Master untuk Paket -->
+    <record id="isp_package_basic" model="isp.package">
+        <field name="name">Paket Basic</field>
+        <field name="code">BASIC</field>
+        <field name="profile_id" ref="isp_mikrotik_profile_basic"/>
+        <field name="price">150000</field>
+        <field name="description">Paket internet basic dengan kecepatan 10 Mbps</field>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <record id="isp_package_standard" model="isp.package">
+        <field name="name">Paket Standard</field>
+        <field name="code">STANDARD</field>
+        <field name="profile_id" ref="isp_mikrotik_profile_standard"/>
+        <field name="price">250000</field>
+        <field name="description">Paket internet standard dengan kecepatan 20 Mbps</field>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <record id="isp_package_premium" model="isp.package">
+        <field name="name">Paket Premium</field>
+        <field name="code">PREMIUM</field>
+        <field name="profile_id" ref="isp_mikrotik_profile_premium"/>
+        <field name="price">350000</field>
+        <field name="description">Paket internet premium dengan kecepatan 50 Mbps</field>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <!-- Data Master untuk Tipe Instalasi -->
+    <record id="isp_installation_type_standard" model="isp.installation.type">
+        <field name="name">Instalasi Standard</field>
+        <field name="code">INST-STD</field>
+        <field name="price">300000</field>
+        <field name="description">Instalasi standard dengan perangkat basic</field>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <record id="isp_installation_type_premium" model="isp.installation.type">
+        <field name="name">Instalasi Premium</field>
+        <field name="code">INST-PRE</field>
+        <field name="price">500000</field>
+        <field name="description">Instalasi premium dengan perangkat berkualitas tinggi</field>
+        <field name="active" eval="True"/>
+    </record>
+    
+    <record id="isp_installation_type_gratis" model="isp.installation.type">
+        <field name="name">Instalasi Gratis</field>
+        <field name="code">INST-FREE</field>
+        <field name="price">0</field>
+        <field name="description">Instalasi gratis untuk promo</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo> 

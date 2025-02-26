@@ -68,6 +68,9 @@ class ISPCPE(models.Model):
     current_download_rate = fields.Char('Current Download Rate', readonly=True)
     last_update = fields.Datetime('Last Update', readonly=True)
     
+    # Tambahkan field untuk menandai proses terminasi sedang berlangsung
+    is_terminating = fields.Boolean('Is Terminating', default=False, copy=False)
+    
     _sql_constraints = [
         ('mac_address_uniq', 'unique(mac_address)', 'MAC Address harus unik!'),
         ('pppoe_username_uniq', 'unique(pppoe_username,connection_type)', 'PPPoE Username harus unik!'),
@@ -134,6 +137,10 @@ class ISPCPE(models.Model):
         """
         self.ensure_one()
         if self.connection_type != 'pppoe':
+            return False, False, None, None
+            
+        # Jika state adalah terminated, lewati validasi username
+        if self.state == 'terminated':
             return False, False, None, None
             
         if not self.pppoe_username:
@@ -311,39 +318,64 @@ class ISPCPE(models.Model):
         self.ensure_one()
         if self.state not in ['open', 'isolated']:
             raise ValidationError('Hanya CPE open atau terisolir yang dapat diterminasi!')
-            
+        
+        # 1. Set flag terminasi untuk bypass validasi
+        self.is_terminating = True
+        
+        # 2. Jika ada subscription, terminate dulu
         if self.subscription_id:
             self.subscription_id.action_terminate()
+        else:
+            # 3. Jika tidak ada subscription, langsung proses CPE
             
-        # Hapus secret di Mikrotik
-        exists, user_id, error, secret_data = self._check_mikrotik_secret()
-        if error:
-            raise ValidationError(error)
+            # Simpan username jika perlu menghapus secret Mikrotik
+            has_pppoe = self.connection_type == 'pppoe' and self.pppoe_username
+            pppoe_username = self.pppoe_username if has_pppoe else False
             
-        if exists:
-            mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-            if not mikrotik:
-                raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+            # Set state tanpa melewati validasi (SUPER untuk bypass ORM constraint)
+            # Langsung ubah ke draft, bukan terminated agar history tetap ada
+            self.env.cr.execute(
+                """UPDATE isp_cpe SET state = 'draft' WHERE id = %s""", 
+                (self.id,)
+            )
+            
+            # Hapus secret di Mikrotik jika perlu
+            if has_pppoe:
+                # Hapus secret di Mikrotik
+                exists, user_id, error, secret_data = self._check_mikrotik_secret()
+                if error:
+                    _logger.warning(f'Error checking secret: {error}')
                 
-            api = mikrotik.get_connection()
-            if not api:
-                raise ValidationError('Gagal terhubung ke Mikrotik!')
-                
-            try:
-                secret_api = api.get_resource('/ppp/secret')
-                secret_api.remove(id=user_id)
-            except Exception as e:
-                raise ValidationError(f'Gagal menghapus secret di Mikrotik: {str(e)}')
-            finally:
-                api.disconnect()
-                
-        self.write({'state': 'terminated'})
+                if exists:
+                    mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+                    if not mikrotik:
+                        _logger.warning('Konfigurasi Mikrotik tidak ditemukan!')
+                    else:
+                        api = mikrotik.get_connection()
+                        if not api:
+                            _logger.warning('Gagal terhubung ke Mikrotik!')
+                        else:
+                            try:
+                                secret_api = api.get_resource('/ppp/secret')
+                                secret_api.remove(id=user_id)
+                            except Exception as e:
+                                _logger.error(f'Gagal menghapus secret di Mikrotik: {str(e)}')
+                            finally:
+                                if hasattr(api, 'disconnect'):
+                                    api.disconnect()
+        
+        # Refresh model data dari database
+        self.env['isp.cpe'].invalidate_model()
+        
+        # Reset flag terminasi
+        self.write({'is_terminating': False})
+        
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': 'Sukses',
-                'message': 'CPE berhasil diterminasi',
+                'message': 'CPE berhasil diterminasi dan diubah ke status draft',
                 'type': 'success',
             }
         }
@@ -601,9 +633,12 @@ class ISPCPE(models.Model):
             'pppoe_address': stats['address']
         })
 
-    @api.constrains('connection_type', 'pppoe_username', 'pppoe_password')
+    @api.constrains('connection_type', 'pppoe_username', 'pppoe_password', 'state')
     def _check_pppoe_fields(self):
         for record in self:
+            # Jika CPE sudah dalam status terminated, lewati validasi
+            if record.state == 'terminated' or record.is_terminating:
+                continue
             if record.connection_type == 'pppoe':
                 if not record.pppoe_username:
                     raise ValidationError('PPPoE Username harus diisi untuk koneksi PPPoE!')

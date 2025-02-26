@@ -171,4 +171,20 @@ class ISPPackage(models.Model):
             'view_mode': 'tree,form',
             'domain': [('package_id', '=', self.id)],
             'context': {'default_package_id': self.id}
-        } 
+        }
+
+    @api.constrains('profile_id')
+    def _check_profile_id(self):
+        for record in self:
+            # Skip validasi jika sedang loading data awal
+            if self.env.context.get('install_mode'):
+                continue
+                
+            if record.profile_id:
+                mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+                if not mikrotik:
+                    raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+                    
+                api = mikrotik.get_connection()
+                if not api:
+                    raise ValidationError('Gagal terhubung ke Mikrotik!') 

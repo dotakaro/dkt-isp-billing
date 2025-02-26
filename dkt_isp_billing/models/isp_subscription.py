@@ -618,95 +618,112 @@ class ISPSubscription(models.Model):
         if self.state not in ['open', 'isolated']:
             raise ValidationError('Hanya subscription open atau terisolir yang dapat diterminasi!')
             
-        # Update profile di Mikrotik sesuai paket
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-        if not mikrotik:
-            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+        # Simpan username terlebih dahulu jika ada
+        has_pppoe = False
+        pppoe_username = False
+        
+        if self.cpe_id and self.cpe_id.pppoe_username:
+            has_pppoe = True
+            pppoe_username = str(self.cpe_id.pppoe_username)
+
+        # Set flag terminasi pada CPE untuk bypass validasi PPPoE
+        if self.cpe_id:
+            self.cpe_id.is_terminating = True
             
         try:
-            # Parse host dan port
-            host, port = mikrotik._parse_host_port()
+            # Update status subscription ke draft (bukan terminated)
+            # agar history subscription tetap terjaga
+            self.write({'state': 'draft'})
             
-            # Buat koneksi ke Mikrotik
-            connection = routeros_api.RouterOsApiPool(
-                host=str(host),
-                username=str(mikrotik.username),
-                password=str(mikrotik.password),
-                port=int(port),
-                plaintext_login=True
-            )
+            # Update status CPE dengan SQL langsung untuk bypass constraint
+            if self.cpe_id:
+                self.env.cr.execute(
+                    """UPDATE isp_cpe SET state = 'draft' WHERE id = %s""", 
+                    (self.cpe_id.id,)
+                )
+                # Force refresh dari database
+                self.env['isp.cpe'].invalidate_model()
+                
+            # Hanya lakukan operasi Mikrotik jika ada username PPPoE
+            if has_pppoe and pppoe_username:
+                # Update profile di Mikrotik sesuai paket
+                mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+                if not mikrotik:
+                    # Jika tidak ada konfigurasi Mikrotik, lanjutkan tanpa error
+                    _logger.warning('Konfigurasi Mikrotik tidak ditemukan!')
+                else:
+                    try:
+                        # Parse host dan port
+                        host, port = mikrotik._parse_host_port()
+                        
+                        # Buat koneksi ke Mikrotik
+                        connection = routeros_api.RouterOsApiPool(
+                            host=str(host),
+                            username=str(mikrotik.username),
+                            password=str(mikrotik.password),
+                            port=int(port),
+                            plaintext_login=True
+                        )
+                        
+                        api = connection.get_api()
+                        if api:
+                            try:
+                                # Cek PPPoE secret dan hapus jika ada
+                                secret_api = api.get_resource('/ppp/secret')
+                                secrets = secret_api.get(name=pppoe_username)
+                                
+                                if secrets:
+                                    # Hapus secret dari Mikrotik
+                                    secret = secrets[0]
+                                    secret_id = secret.get('.id') or secret.get('id') or secret.get('.uid')
+                                    if secret_id:
+                                        secret_api.remove(id=str(secret_id))
+                            except Exception as e:
+                                _logger.error(f'Error saat menghapus PPPoE secret: {str(e)}')
+                            finally:
+                                connection.disconnect()
+                    except Exception as e:
+                        _logger.error(f'Error saat koneksi ke Mikrotik: {str(e)}')
             
-            api = connection.get_api()
-            if not api:
-                raise ValidationError('Gagal terhubung ke Mikrotik!')
-                
-            try:
-                # Pastikan username dalam bentuk string
-                pppoe_username = str(self.cpe_id.pppoe_username or '')
-                
-                # Cek PPPoE secret
-                secret_api = api.get_resource('/ppp/secret')
-                secrets = secret_api.get(name=pppoe_username)
-                
-                if secrets:
-                    # Hapus secret dari Mikrotik
-                    secret = secrets[0]
-                    secret_id = secret.get('.id') or secret.get('id') or secret.get('.uid')
-                    if secret_id:
-                        secret_api.remove(id=str(secret_id))
-                
-                # Update status subscription
-                self.write({'state': 'terminated'})
-                
-                # Cek apakah masih ada subscription aktif untuk CPE ini
-                active_subs = self.search([
-                    ('cpe_id', '=', self.cpe_id.id),
-                    ('state', 'in', ['open', 'isolated']),
-                    ('id', '!=', self.id)
-                ])
-                
-                if not active_subs:
-                    # Reset CPE ke draft
-                    self.cpe_id.write({
-                        'state': 'draft',
-                        'pppoe_username': False,
-                        'pppoe_password': False
-                    })
-                    
-                    # Cek apakah masih ada CPE aktif untuk pelanggan ini
-                    active_cpes = self.env['isp.cpe'].search([
-                        ('partner_id', '=', self.partner_id.id),
-                        ('state', 'in', ['open', 'isolated'])
-                    ])
-                    
-                    if not active_cpes:
-                        # Reset pelanggan ke draft
-                        self.partner_id.write({'state': 'draft'})
-                
-                # Tampilkan notifikasi sukses
-                self.env['bus.bus']._sendone(
-                    self.env.user.partner_id,
-                    'simple_notification',
-                    {
-                        'title': 'Sukses',
-                        'message': 'Subscription berhasil diterminasi',
-                        'type': 'success',
-                    }
+            # Cek apakah masih ada subscription aktif untuk CPE ini
+            active_subs = self.search([
+                ('cpe_id', '=', self.cpe_id.id),
+                ('state', 'in', ['open', 'isolated']),
+                ('id', '!=', self.id)
+            ])
+            
+            if not active_subs:
+                # Reset CPE ke draft tapi TETAP pertahankan username & password PPPoE
+                # agar history tetap terjaga
+                self.env.cr.execute(
+                    """UPDATE isp_cpe SET state = 'draft' WHERE id = %s""", 
+                    (self.cpe_id.id,)
                 )
                 
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'reload',
-                }
-            except Exception as e:
-                _logger.error(f'Error saat terminasi subscription: {str(e)}')
-                raise ValidationError(f'Gagal terminasi subscription: {str(e)}')
-            finally:
-                if api:
-                    connection.disconnect()
-        except Exception as e:
-            _logger.error(f'Error saat koneksi ke Mikrotik: {str(e)}')
-            raise ValidationError(f'Gagal terhubung ke Mikrotik: {str(e)}')
+                # Cek apakah masih ada CPE aktif untuk pelanggan ini
+                active_cpes = self.env['isp.cpe'].search([
+                    ('partner_id', '=', self.partner_id.id),
+                    ('state', 'in', ['open', 'isolated'])
+                ])
+                
+                if not active_cpes:
+                    # Reset pelanggan ke draft
+                    self.partner_id.write({'state': 'draft'})
+        finally:
+            # Pastikan flag terminasi direset meskipun ada error
+            if self.cpe_id:
+                self.cpe_id.is_terminating = False
+        
+        # Tampilkan notifikasi sukses
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Sukses',
+                'message': 'Subscription berhasil diterminasi dan diubah ke status draft',
+                'type': 'success',
+            }
+        }
 
     def action_view_invoices(self):
         """Tampilkan invoice subscription"""

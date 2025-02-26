@@ -18,6 +18,12 @@
               action="base.action_partner_form"
               sequence="10"/>
               
+    <menuitem id="menu_isp_installation_wizard"
+              name="Pasang Baru"
+              parent="menu_isp_customer_root"
+              action="action_isp_installation_wizard"
+              sequence="20"/>
+              
     <!-- Menu Layanan -->
     <menuitem id="menu_isp_service_root"
               name="Layanan"
@@ -35,6 +41,12 @@
               parent="menu_isp_service_root"
               action="action_isp_subscription"
               sequence="20"/>
+
+    <menuitem id="menu_isp_subscription_draft"
+              name="Subscription Draft"
+              parent="menu_isp_service_root"
+              action="action_isp_subscription_draft"
+              sequence="25"/>
 
     <menuitem id="menu_isp_installation_fee"
               name="Biaya Instalasi"
@@ -79,7 +91,7 @@
               sequence="40"/>
 
     <menuitem id="menu_isp_invoice"
-              name="Invoice"
+              name="Invoice Langganan"
               parent="menu_isp_finance_root"
               action="action_isp_invoice_all"
               sequence="20"/>
@@ -95,6 +107,12 @@
               parent="menu_isp_finance_root"
               action="action_isp_invoice_posted"
               sequence="30"/>
+
+    <menuitem id="menu_isp_installation_invoice"
+              name="Invoice Instalasi"
+              parent="menu_isp_finance_root"
+              action="action_isp_installation_invoice"
+              sequence="35"/>
 
     <menuitem id="menu_isp_discount"
               name="Diskon"

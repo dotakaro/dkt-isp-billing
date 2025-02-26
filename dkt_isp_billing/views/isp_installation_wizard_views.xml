@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View untuk Wizard Pasang Baru -->
+    <record id="view_isp_installation_wizard_form" model="ir.ui.view">
+        <field name="name">isp.installation.wizard.form</field>
+        <field name="model">isp.installation.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Pasang Baru">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="customer,cpe,subscription,fee,summary"/>
+                </header>
+                <sheet>
+                    <!-- Step 1: Data Pelanggan -->
+                    <div invisible="state != 'customer'">
+                        <h2>Data Pelanggan</h2>
+                        <group>
+                            <group>
+                                <field name="is_new_customer"/>
+                                <field name="partner_id" invisible="is_new_customer" required="not is_new_customer" options="{'no_create': True, 'no_open': True}"/>
+                                <field name="name" invisible="not is_new_customer" required="is_new_customer"/>
+                                <field name="identity_number" invisible="not is_new_customer"/>
+                                <field name="mobile" invisible="not is_new_customer" required="is_new_customer"/>
+                                <field name="phone" invisible="not is_new_customer"/>
+                                <field name="email" invisible="not is_new_customer"/>
+                            </group>
+                            <group invisible="not is_new_customer">
+                                <field name="street"/>
+                                <field name="street2"/>
+                                <field name="city"/>
+                                <field name="state_id" options="{'no_create': True}" domain="[('country_id', '=', country_id)]"/>
+                                <field name="zip"/>
+                                <field name="country_id" options="{'no_create': True}"/>
+                            </group>
+                        </group>
+                        <group invisible="not is_new_customer">
+                            <group>
+                                <field name="emergency_contact"/>
+                                <field name="emergency_phone"/>
+                            </group>
+                            <group>
+                                <field name="notes"/>
+                            </group>
+                        </group>
+                    </div>
+                    
+                    <!-- Step 2: Data Perangkat -->
+                    <div invisible="state != 'cpe'">
+                        <h2>Data Perangkat</h2>
+                        <group>
+                            <group>
+                                <field name="cpe_name" required="1"/>
+                                <field name="mac_address"/>
+                                <field name="ip_address"/>
+                                <field name="outdoor_unit"/>
+                                <field name="router"/>
+                            </group>
+                            <group>
+                                <field name="connection_type"/>
+                                <field name="pppoe_username" invisible="connection_type != 'pppoe'" required="connection_type == 'pppoe'"/>
+                                <field name="pppoe_password" invisible="connection_type != 'pppoe'" required="connection_type == 'pppoe'"/>
+                                <field name="ownership"/>
+                            </group>
+                        </group>
+                    </div>
+                    
+                    <!-- Step 3: Data Layanan -->
+                    <div invisible="state != 'subscription'">
+                        <h2>Data Layanan</h2>
+                        <group>
+                            <group>
+                                <field name="package_id" required="1" options="{'no_open': True, 'no_create': True}"/>
+                                <field name="date_start" required="1"/>
+                                <field name="due_day" required="1"/>
+                            </group>
+                            <group>
+                                <field name="recurring_interval" required="1"/>
+                                <field name="recurring_rule_type" required="1"/>
+                                <field name="discount_id" options="{'no_create': True}"/>
+                            </group>
+                        </group>
+                    </div>
+                    
+                    <!-- Step 4: Biaya Pemasangan -->
+                    <div invisible="state != 'fee'">
+                        <h2>Biaya Pemasangan</h2>
+                        <group>
+                            <group>
+                                <field name="installation_type_id" required="1" options="{'no_open': True, 'no_create': True}"/>
+                                <field name="installation_date" required="1"/>
+                                <field name="installation_amount" required="1"/>
+                            </group>
+                            <group>
+                                <field name="technician_id" options="{'no_create': True}"/>
+                                <field name="installation_notes"/>
+                            </group>
+                        </group>
+                    </div>
+                    
+                    <!-- Step 5: Ringkasan -->
+                    <div invisible="state != 'summary'">
+                        <h2>Ringkasan</h2>
+                        <group>
+                            <group string="Data Pelanggan">
+                                <field name="partner_id" readonly="1" invisible="is_new_customer"/>
+                                <field name="name" readonly="1" invisible="not is_new_customer"/>
+                                <field name="mobile" readonly="1" invisible="not is_new_customer"/>
+                            </group>
+                            <group string="Data Perangkat">
+                                <field name="cpe_name" readonly="1"/>
+                                <field name="connection_type" readonly="1"/>
+                                <field name="pppoe_username" readonly="1" invisible="connection_type != 'pppoe'"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group string="Data Layanan">
+                                <field name="package_id" readonly="1"/>
+                                <field name="date_start" readonly="1"/>
+                                <field name="due_day" readonly="1"/>
+                            </group>
+                            <group string="Biaya Pemasangan">
+                                <field name="installation_type_id" readonly="1"/>
+                                <field name="installation_amount" readonly="1" widget="monetary"/>
+                                <field name="installation_date" readonly="1"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group string="Opsi">
+                                <field name="create_invoice"/>
+                                <field name="activate_service"/>
+                            </group>
+                        </group>
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_previous" string="Sebelumnya" type="object" class="btn-secondary" invisible="state == 'customer'"/>
+                    <button name="action_next" string="Selanjutnya" type="object" class="btn-primary" invisible="state == 'summary'"/>
+                    <button name="action_create" string="Buat" type="object" class="btn-primary" invisible="state != 'summary'"/>
+                    <button string="Batal" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Action untuk Wizard Pasang Baru -->
+    <record id="action_isp_installation_wizard" model="ir.actions.act_window">
+        <field name="name">Pasang Baru</field>
+        <field name="res_model">isp.installation.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    
+    <!-- Menu untuk Wizard Pasang Baru dihapus dan dipindahkan ke tombol di tree view pelanggan -->
+</odoo> 

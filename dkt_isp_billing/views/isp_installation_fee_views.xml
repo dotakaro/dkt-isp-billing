@@ -28,6 +28,16 @@
                             type="object" 
                             class="oe_highlight" 
                             invisible="state != 'draft'"/>
+                    <button name="action_set_paid" 
+                            string="Tandai Lunas" 
+                            type="object" 
+                            class="oe_highlight" 
+                            invisible="state not in ['draft', 'confirmed']"/>
+                    <button name="create_invoice" 
+                            string="Buat Invoice" 
+                            type="object" 
+                            class="btn-secondary" 
+                            invisible="state != 'confirmed' or invoice_id"/>
                     <field name="state" 
                            widget="statusbar" 
                            statusbar_visible="draft,confirmed,paid"/>

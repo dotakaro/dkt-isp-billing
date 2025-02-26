@@ -54,12 +54,126 @@ class ISPReport(models.Model):
     def action_generate_report(self):
         self.ensure_one()
         
-        # Ambil data untuk report
-        report_data = self._get_report_data()
-        
-        # Generate report
-        report = self.env.ref('dkt_isp_billing.action_report_customer')
-        return report.report_action(self, data=report_data)
+        # Set report type for different report actions
+        if self.report_type == 'customer':
+            domain = []
+            if self.date_from:
+                domain.append(('create_date', '>=', self.date_from))
+            if self.date_to:
+                domain.append(('create_date', '<=', self.date_to))
+            customers = self.env['res.partner'].search(domain)
+            data = {
+                'ids': self.ids,
+                'model': 'isp.report',
+                'form': {
+                    'date_from': self.date_from,
+                    'date_to': self.date_to,
+                    'state': self.state,
+                    'customers': customers.ids,
+                }
+            }
+            return self.env.ref('dkt_isp_billing.action_report_customer').report_action(self, data=data)
+            
+        elif self.report_type == 'cpe':
+            # Get CPE data
+            domain = []
+            if self.date_from:
+                domain.append(('create_date', '>=', self.date_from))
+            if self.date_to:
+                domain.append(('create_date', '<=', self.date_to))
+            cpes = self.env['isp.cpe'].search(domain)
+            data = {
+                'ids': self.ids,
+                'model': 'isp.report',
+                'form': {
+                    'date_from': self.date_from,
+                    'date_to': self.date_to,
+                    'cpes': cpes.ids,
+                }
+            }
+            return self.env.ref('dkt_isp_billing.action_report_cpe').report_action(self, data=data)
+            
+        elif self.report_type == 'package':
+            # Get package data
+            domain = []
+            packages = self.env['isp.package'].search(domain)
+            data = {
+                'ids': self.ids,
+                'model': 'isp.report',
+                'form': {
+                    'date_from': self.date_from,
+                    'date_to': self.date_to,
+                    'packages': packages.ids,
+                }
+            }
+            return self.env.ref('dkt_isp_billing.action_report_package').report_action(self, data=data)
+            
+        elif self.report_type == 'financial':
+            # Get financial data
+            subscription_domain = [
+                ('invoice_ids.invoice_date', '>=', self.date_from),
+                ('invoice_ids.invoice_date', '<=', self.date_to)
+            ]
+            subscriptions = self.env['isp.subscription'].search(subscription_domain)
+            total_subscription = sum(subscriptions.mapped('final_amount'))
+            
+            installation_domain = [
+                ('date', '>=', self.date_from),
+                ('date', '<=', self.date_to)
+            ]
+            installations = self.env['isp.installation.fee'].search(installation_domain)
+            total_installation = sum(installations.mapped('amount'))
+            
+            data = {
+                'ids': self.ids,
+                'model': 'isp.report',
+                'form': {
+                    'date_from': self.date_from,
+                    'date_to': self.date_to,
+                    'subscriptions': subscriptions.ids,
+                    'installations': installations.ids,
+                    'total_subscription': total_subscription,
+                    'total_installation': total_installation,
+                }
+            }
+            return self.env.ref('dkt_isp_billing.action_report_financial').report_action(self, data=data)
+            
+        elif self.report_type == 'profit_loss':
+            # Get profit loss data
+            # Similar to financial but add expenses
+            subscription_domain = [
+                ('invoice_ids.invoice_date', '>=', self.date_from),
+                ('invoice_ids.invoice_date', '<=', self.date_to)
+            ]
+            subscriptions = self.env['isp.subscription'].search(subscription_domain)
+            total_subscription = sum(subscriptions.mapped('final_amount'))
+            
+            installation_domain = [
+                ('date', '>=', self.date_from),
+                ('date', '<=', self.date_to)
+            ]
+            installations = self.env['isp.installation.fee'].search(installation_domain)
+            total_installation = sum(installations.mapped('amount'))
+            
+            # Add dummy expense data for now
+            total_device_cost = 0.0
+            total_maintenance = 0.0
+            
+            data = {
+                'ids': self.ids,
+                'model': 'isp.report',
+                'form': {
+                    'date_from': self.date_from,
+                    'date_to': self.date_to,
+                    'total_subscription': total_subscription,
+                    'total_installation': total_installation,
+                    'total_revenue': total_subscription + total_installation,
+                    'total_device_cost': total_device_cost,
+                    'total_maintenance': total_maintenance,
+                    'total_cost': total_device_cost + total_maintenance,
+                }
+            }
+            return self.env.ref('dkt_isp_billing.action_report_profit_loss').report_action(self, data=data)
         
     def _get_customer_data(self):
         """Get customer data for report"""

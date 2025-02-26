@@ -10,6 +10,8 @@
             'default_customer_rank': 1,
             'search_default_customer': 1,
             'res_partner_search_mode': 'customer',
+            'form_view_ref': 'dkt_isp_billing.view_isp_customer_form',
+            'default_active_tab': 'isp'
         }</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
@@ -32,15 +34,21 @@
                 <field name="cpe_count"/>
                 <field name="total_outstanding"/>
                 <field name="state"/>
+                <button name="%(dkt_isp_billing.action_isp_installation_wizard)d" 
+                        string="Pasang Baru" 
+                        type="action" 
+                        icon="fa-plug"
+                        context="{'default_is_new_customer': False, 'default_partner_id': active_id}"/>
             </tree>
         </field>
     </record>
     
-    <!-- Form View -->
+    <!-- Form View - Inheritance -->
     <record id="view_isp_customer_form" model="ir.ui.view">
         <field name="name">res.partner.isp.form</field>
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="priority">20</field>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
                 <header>
@@ -48,8 +56,31 @@
                 </header>
             </xpath>
             
-            <xpath expr="//notebook" position="inside">
-                <page string="ISP" name="isp">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_subscriptions" 
+                        type="object" 
+                        class="oe_stat_button" 
+                        icon="fa-list"
+                        context="{'search_default_open': 1}">
+                    <field name="subscription_count" widget="statinfo" string="Langganan"/>
+                </button>
+                <button name="action_view_invoices" 
+                        type="object" 
+                        class="oe_stat_button" 
+                        icon="fa-money"
+                        context="{'search_default_open': 1}">
+                    <field name="total_outstanding" widget="statinfo" string="Tagihan"/>
+                </button>
+            </xpath>
+            
+            <xpath expr="//field[@name='duplicated_bank_account_partners_count']" position="after">
+                <field name="emergency_contact" invisible="1"/>
+                <field name="emergency_phone" invisible="1"/>
+                <field name="notes" invisible="1"/>
+            </xpath>
+            
+            <xpath expr="//notebook/page[1]" position="before">
+                <page string="ISP" name="isp" data-section="isp">
                     <group>
                         <group string="Informasi ISP">
                             <field name="subscription_count"/>
@@ -65,6 +96,30 @@
                         <field name="notes" nolabel="1"/>
                     </group>
                 </page>
+            </xpath>
+            
+            <xpath expr="//page[@name='contact_addresses']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//page[@name='internal_notes']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <xpath expr="//page[@name='sales_purchases']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- View untuk menghilangkan tombol subscription bawaan Odoo -->
+    <record id="view_partner_hide_subscription_button" model="ir.ui.view">
+        <field name="name">res.partner.hide.subscription.button</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="sale_subscription.res_partner_view_inherit_sale_subscription"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='open_related_subscription']" position="attributes">
+                <attribute name="invisible">1</attribute>
             </xpath>
         </field>
     </record>

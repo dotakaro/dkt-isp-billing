@@ -21,7 +21,7 @@
     <menuitem id="menu_isp_installation_wizard"
               name="Pasang Baru"
               parent="menu_isp_customer_root"
-              action="action_isp_installation_wizard"
+              action="dkt_isp_billing.action_isp_installation_wizard"
               sequence="20"/>
               
     <!-- Menu Layanan -->

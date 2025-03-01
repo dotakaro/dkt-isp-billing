@@ -11,6 +11,7 @@
                 <field name="mac_address"/>
                 <field name="ip_address"/>
                 <field name="pppoe_username"/>
+                <field name="mikrotik_config_id" optional="show"/>
                 <field name="pppoe_status"/>
                 <field name="pppoe_uptime"/>
                 <field name="upload_usage" sum="Total Upload"/>
@@ -36,6 +37,11 @@
                             string="Isolir" 
                             type="object"
                             invisible="state != 'open'"/>
+                    <button name="action_enable" 
+                            string="Buka Isolir" 
+                            type="object"
+                            class="btn-success"
+                            invisible="state != 'isolated'"/>
                     <button name="action_terminate" 
                             string="Terminasi" 
                             type="object"
@@ -60,23 +66,29 @@
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="Nama Perangkat"/>
+                            <field name="name" placeholder="Nama Perangkat" readonly="state != 'draft'"/>
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="partner_id"/>
-                            <field name="mac_address"/>
-                            <field name="ip_address"/>
-                            <field name="outdoor_unit"/>
-                            <field name="router"/>
-                            <field name="connection_type"/>
+                            <field name="partner_id" readonly="state != 'draft'"/>
+                            <field name="mac_address" readonly="state != 'draft'"/>
+                            <field name="ip_address" readonly="state != 'draft'"/>
+                            <field name="outdoor_unit" readonly="state != 'draft'"/>
+                            <field name="router" readonly="state != 'draft'"/>
+                            <field name="connection_type" readonly="state != 'draft'"/>
                         </group>
                         <group>
-                            <field name="pppoe_username" invisible="connection_type != 'pppoe'"/>
-                            <field name="pppoe_password" password="1" invisible="connection_type != 'pppoe'"/>
-                            <field name="mikrotik_config_id" options="{'no_create': True}" invisible="connection_type != 'pppoe'"/>
-                            <field name="ownership"/>
+                            <field name="pppoe_username" invisible="connection_type != 'pppoe'" readonly="state != 'draft'"/>
+                            <field name="pppoe_password" password="1" invisible="connection_type != 'pppoe'" readonly="state != 'draft'"/>
+                            <field name="mikrotik_config_id" 
+                                   options="{'no_create': True}" 
+                                   invisible="connection_type != 'pppoe'" 
+                                   domain="[('active', '=', True)]"
+                                   required="connection_type == 'pppoe'"
+                                   widget="selection"
+                                   readonly="state != 'draft'"/>
+                            <field name="ownership" readonly="state != 'draft'"/>
                         </group>
                     </group>
                     <notebook>
@@ -98,7 +110,7 @@
                             </group>
                         </page>
                         <page string="Subscription" name="subscription">
-                            <field name="subscription_ids" context="{'default_partner_id': partner_id, 'default_cpe_id': id}">
+                            <field name="subscription_ids" context="{'default_partner_id': partner_id, 'default_cpe_id': id}" readonly="state != 'draft'">
                                 <tree>
                                     <field name="name"/>
                                     <field name="package_id"/>
@@ -115,6 +127,11 @@
                                             type="object"
                                             icon="fa-pause"
                                             invisible="state != 'open'"/>
+                                    <button name="action_enable" 
+                                            string="Buka Isolir" 
+                                            type="object"
+                                            icon="fa-play-circle"
+                                            invisible="state != 'isolated'"/>
                                     <button name="action_terminate" 
                                             string="Terminasi" 
                                             type="object"
@@ -141,27 +158,33 @@
                         <page string="PPPoE" invisible="connection_type != 'pppoe'">
                             <group>
                                 <group string="PPPoE Credentials">
-                                    <field name="pppoe_username"/>
-                                    <field name="pppoe_password" password="True"/>
+                                    <field name="pppoe_username" readonly="state != 'draft'"/>
+                                    <field name="pppoe_password" password="True" readonly="state != 'draft'"/>
+                                    <field name="mikrotik_config_id" 
+                                        options="{'no_create': True}" 
+                                        domain="[('active', '=', True)]" 
+                                        required="connection_type == 'pppoe'"
+                                        widget="selection"
+                                        readonly="state != 'draft'"/>
                                 </group>
                                 <group string="PPPoE Status">
-                                    <field name="pppoe_status"/>
-                                    <field name="pppoe_uptime"/>
-                                    <field name="pppoe_last_seen"/>
-                                    <field name="pppoe_caller_id"/>
-                                    <field name="pppoe_address"/>
-                                    <field name="pppoe_session_id"/>
+                                    <field name="pppoe_status" readonly="1"/>
+                                    <field name="pppoe_uptime" readonly="1"/>
+                                    <field name="pppoe_last_seen" readonly="1"/>
+                                    <field name="pppoe_caller_id" readonly="1"/>
+                                    <field name="pppoe_address" readonly="1"/>
+                                    <field name="pppoe_session_id" readonly="1"/>
                                 </group>
                             </group>
                             <group string="Usage Statistics">
                                 <group>
-                                    <field name="upload_usage" widget="float_time"/>
-                                    <field name="download_usage" widget="float_time"/>
-                                    <field name="upload_rate"/>
-                                    <field name="download_rate"/>
+                                    <field name="upload_usage" widget="float_time" readonly="1"/>
+                                    <field name="download_usage" widget="float_time" readonly="1"/>
+                                    <field name="upload_rate" readonly="1"/>
+                                    <field name="download_rate" readonly="1"/>
                                 </group>
                                 <group>
-                                    <field name="signal_strength"/>
+                                    <field name="signal_strength" readonly="1"/>
                                     <field name="is_monitoring" invisible="1"/>
                                     <button name="action_start_monitoring" 
                                             string="Start Monitoring" 
@@ -216,6 +239,7 @@
                 <field name="mac_address"/>
                 <field name="ip_address"/>
                 <field name="pppoe_username"/>
+                <field name="mikrotik_config_id"/>
                 <separator/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
                 <filter string="Open" name="open" domain="[('state', '=', 'open')]"/>
@@ -228,6 +252,7 @@
                     <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'partner_id'}"/>
                     <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
                     <filter string="Status PPPoE" name="group_by_pppoe" context="{'group_by': 'pppoe_status'}"/>
+                    <filter string="Router Mikrotik" name="group_by_mikrotik" context="{'group_by': 'mikrotik_config_id'}"/>
                 </group>
             </search>
         </field>

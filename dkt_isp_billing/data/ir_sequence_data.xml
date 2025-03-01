@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Sequence untuk Subscription -->
+    <record id="seq_isp_subscription" model="ir.sequence">
+        <field name="name">ISP Subscription Sequence</field>
+        <field name="code">isp.subscription.sequence</field>
+        <field name="prefix">SUB/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    
+    <!-- Sequence untuk Installation Fee -->
+    <record id="seq_isp_installation_fee" model="ir.sequence">
+        <field name="name">ISP Installation Fee Sequence</field>
+        <field name="code">isp.installation.fee.sequence</field>
+        <field name="prefix">INST/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    
+    <!-- Sequence untuk Device History -->
+    <record id="seq_isp_device_history" model="ir.sequence">
+        <field name="name">ISP Device History Sequence</field>
+        <field name="code">isp.device.history.sequence</field>
+        <field name="prefix">DEV/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo> 

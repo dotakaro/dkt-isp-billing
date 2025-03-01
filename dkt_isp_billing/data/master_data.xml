@@ -6,25 +6,28 @@
         <field name="host">127.0.0.1:8728</field>
         <field name="username">admin</field>
         <field name="password">password</field>
-        <field name="active" eval="False"/>
+        <field name="active" eval="True"/>
     </record>
     
     <!-- Data Master untuk PPPoE Profile -->
     <record id="isp_mikrotik_profile_basic" model="isp.mikrotik.profile">
         <field name="name">profile-basic</field>
         <field name="rate_limit">10M/10M</field>
+        <field name="mikrotik_config_id" ref="isp_mikrotik_config_default"/>
         <field name="active" eval="True"/>
     </record>
     
     <record id="isp_mikrotik_profile_standard" model="isp.mikrotik.profile">
         <field name="name">profile-standard</field>
         <field name="rate_limit">20M/20M</field>
+        <field name="mikrotik_config_id" ref="isp_mikrotik_config_default"/>
         <field name="active" eval="True"/>
     </record>
     
     <record id="isp_mikrotik_profile_premium" model="isp.mikrotik.profile">
         <field name="name">profile-premium</field>
         <field name="rate_limit">50M/50M</field>
+        <field name="mikrotik_config_id" ref="isp_mikrotik_config_default"/>
         <field name="active" eval="True"/>
     </record>
     

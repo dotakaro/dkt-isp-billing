@@ -1,5 +1,8 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class ISPPackage(models.Model):
     _name = 'isp.package'
@@ -12,6 +15,10 @@ class ISPPackage(models.Model):
     profile_id = fields.Many2one('isp.mikrotik.profile', string='PPPoE Profile',
                               required=True, tracking=True,
                               help="Profile PPPoE yang digunakan di Mikrotik")
+    mikrotik_config_id = fields.Many2one('isp.mikrotik.config', string='Router Mikrotik',
+                                      related='profile_id.mikrotik_config_id', 
+                                      store=True, readonly=True,
+                                      help="Router Mikrotik yang digunakan oleh profile")
     price = fields.Float('Harga', required=True, tracking=True)
     description = fields.Text('Deskripsi', tracking=True)
     active = fields.Boolean('Active', default=True, tracking=True)
@@ -37,50 +44,16 @@ class ISPPackage(models.Model):
         for record in self:
             record.subscription_count = len(record.subscription_ids)
     
-    @api.model_create_multi
-    def create(self, vals_list):
-        # Buat produk untuk setiap paket
-        for vals in vals_list:
-            # Buat produk baru
-            product_vals = {
-                'name': vals.get('name', ''),
-                'type': 'service',
-                'list_price': vals.get('price', 0.0),
-                'standard_price': 0.0,
-                'default_code': vals.get('code', ''),
-                'description': vals.get('description', ''),
-                'detailed_type': 'service',
-                'invoice_policy': 'order',
-            }
-            product = self.env['product.template'].create(product_vals)
-            vals['product_id'] = product.id
-            
-        return super().create(vals_list)
-    
+    @api.model
+    def create(self, vals):
+        res = super(ISPPackage, self).create(vals)
+        # Tidak perlu sync ke Mikrotik saat create, karena profile sudah ada
+        return res
+
     def write(self, vals):
-        # Update produk terkait jika ada perubahan
-        if any(field in vals for field in ['name', 'price', 'code', 'description']):
-            for record in self:
-                if record.product_id:
-                    product_vals = {}
-                    if 'name' in vals:
-                        product_vals['name'] = vals['name']
-                    if 'price' in vals:
-                        product_vals['list_price'] = vals['price']
-                    if 'code' in vals:
-                        product_vals['default_code'] = vals['code']
-                    if 'description' in vals:
-                        product_vals['description'] = vals['description']
-                    record.product_id.write(product_vals)
-        return super().write(vals)
-    
-    def unlink(self):
-        # Hapus produk terkait saat paket dihapus
-        products = self.mapped('product_id')
-        result = super().unlink()
-        if products:
-            products.unlink()
-        return result
+        res = super(ISPPackage, self).write(vals)
+        # Tidak perlu sync ke Mikrotik saat write, karena profile sudah ada
+        return res
 
     @api.depends('profile_id', 'profile_id.rate_limit')
     def _compute_bandwidth(self):
@@ -88,10 +61,18 @@ class ISPPackage(models.Model):
             if record.profile_id and record.profile_id.rate_limit:
                 try:
                     # Format rate limit: "10M/20M"
-                    up, down = record.profile_id.rate_limit.split('/')
-                    record.bandwidth_up = int(up.strip('M'))
-                    record.bandwidth_down = int(down.strip('M'))
-                except:
+                    parts = record.profile_id.rate_limit.split('/')
+                    if len(parts) == 2:
+                        # Ambil nilai numerik dari string (hapus 'M', 'k', dll)
+                        up = ''.join(c for c in parts[0] if c.isdigit())
+                        down = ''.join(c for c in parts[1] if c.isdigit())
+                        record.bandwidth_up = int(up) if up else 0
+                        record.bandwidth_down = int(down) if down else 0
+                    else:
+                        record.bandwidth_up = 0
+                        record.bandwidth_down = 0
+                except Exception as e:
+                    _logger.error(f"Error parsing rate limit: {e}")
                     record.bandwidth_up = 0
                     record.bandwidth_down = 0
             else:
@@ -117,7 +98,14 @@ class ISPPackage(models.Model):
     def action_sync_to_mikrotik(self):
         """Sinkronkan paket ke Mikrotik sebagai profile."""
         self.ensure_one()
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        
+        # Gunakan konfigurasi Mikrotik dari profil jika ada
+        mikrotik = None
+        if self.profile_id and self.profile_id.mikrotik_config_id:
+            mikrotik = self.profile_id.mikrotik_config_id
+        else:
+            mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+            
         if not mikrotik:
             raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
             
@@ -158,7 +146,21 @@ class ISPPackage(models.Model):
         res = super(ISPPackage, self).write(vals)
         if any(field in vals for field in ['bandwidth_up', 'bandwidth_down', 'name']):
             for record in self:
-                record.action_sync_to_mikrotik()
+                try:
+                    record.action_sync_to_mikrotik()
+                except Exception as e:
+                    # Log error tapi jangan gagalkan operasi write
+                    _logger.error(f'Gagal sinkronisasi profile ke Mikrotik: {str(e)}')
+                    # Tampilkan warning ke user
+                    self.env['bus.bus']._sendone(
+                        self.env.user.partner_id,
+                        'simple_notification',
+                        {
+                            'title': 'Peringatan',
+                            'message': f'Paket berhasil disimpan, tetapi gagal sinkronisasi ke Mikrotik: {str(e)}',
+                            'type': 'warning',
+                        }
+                    )
         return res
 
     def action_view_subscriptions(self):
@@ -175,16 +177,7 @@ class ISPPackage(models.Model):
 
     @api.constrains('profile_id')
     def _check_profile_id(self):
-        for record in self:
-            # Skip validasi jika sedang loading data awal
-            if self.env.context.get('install_mode'):
-                continue
-                
-            if record.profile_id:
-                mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-                if not mikrotik:
-                    raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
-                    
-                api = mikrotik.get_connection()
-                if not api:
-                    raise ValidationError('Gagal terhubung ke Mikrotik!') 
+        """Validasi profile_id tanpa mencoba koneksi ke Mikrotik"""
+        # Tidak perlu validasi koneksi Mikrotik di sini
+        # Profile sudah divalidasi di model isp.mikrotik.profile
+        pass 

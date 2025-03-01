@@ -52,6 +52,16 @@
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
                 <header>
+                    <button name="action_activate" 
+                            string="Aktifkan" 
+                            type="object"
+                            class="oe_highlight"
+                            invisible="state != 'draft'"/>
+                    <button name="action_enable" 
+                            string="Buka Isolir" 
+                            type="object"
+                            class="btn-success"
+                            invisible="state != 'isolated'"/>
                     <field name="state" widget="statusbar"/>
                 </header>
             </xpath>
@@ -63,6 +73,13 @@
                         icon="fa-list"
                         context="{'search_default_open': 1}">
                     <field name="subscription_count" widget="statinfo" string="Langganan"/>
+                </button>
+                <button name="action_view_cpe" 
+                        type="object" 
+                        class="oe_stat_button" 
+                        icon="fa-sitemap"
+                        context="{'search_default_open': 1}">
+                    <field name="cpe_count" widget="statinfo" string="CPE"/>
                 </button>
                 <button name="action_view_invoices" 
                         type="object" 
@@ -80,7 +97,7 @@
             </xpath>
             
             <xpath expr="//notebook/page[1]" position="before">
-                <page string="ISP" name="isp" data-section="isp">
+                <page string="ISP" name="isp" data-section="isp" data-default-active="1">
                     <group>
                         <group string="Informasi ISP">
                             <field name="subscription_count"/>
@@ -95,6 +112,47 @@
                     <group string="Catatan">
                         <field name="notes" nolabel="1"/>
                     </group>
+                </page>
+                <page string="CPE" name="cpe">
+                    <field name="cpe_ids" context="{'default_partner_id': active_id}">
+                        <tree>
+                            <field name="name"/>
+                            <field name="mac_address"/>
+                            <field name="ip_address"/>
+                            <field name="connection_type"/>
+                            <field name="pppoe_username"/>
+                            <field name="mikrotik_config_id"/>
+                            <field name="pppoe_status"/>
+                            <field name="state"/>
+                            <button name="action_activate" 
+                                    string="Aktifkan" 
+                                    type="object"
+                                    icon="fa-play"
+                                    invisible="state != 'draft'"/>
+                            <button name="action_isolate" 
+                                    string="Isolir" 
+                                    type="object"
+                                    icon="fa-pause"
+                                    invisible="state != 'open'"/>
+                            <button name="action_enable" 
+                                    string="Buka Isolir" 
+                                    type="object"
+                                    icon="fa-play-circle"
+                                    invisible="state != 'isolated'"/>
+                            <button name="action_terminate" 
+                                    string="Terminasi" 
+                                    type="object"
+                                    icon="fa-stop"
+                                    invisible="state not in ('open', 'isolated')"/>
+                        </tree>
+                    </field>
+                    <div class="oe_right oe_button_box" name="cpe_buttons">
+                        <button name="%(dkt_isp_billing.action_isp_cpe)d" 
+                                type="action" 
+                                class="btn btn-primary"
+                                string="Tambah CPE Baru"
+                                context="{'default_partner_id': active_id}"/>
+                    </div>
                 </page>
             </xpath>
             

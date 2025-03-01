@@ -27,7 +27,7 @@ class ISPCPE(models.Model):
     mikrotik_config_id = fields.Many2one('isp.mikrotik.config', string='Router Mikrotik', 
                                         tracking=True, 
                                         help="Router Mikrotik tempat user PPPoE dibuat",
-                                        compute='_compute_mikrotik_config_id', store=True, readonly=False)
+                                        default=lambda self: self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1))
     pppoe_username = fields.Char('PPPoE Username', tracking=True)
     pppoe_password = fields.Char('PPPoE Password', tracking=True)
     ownership = fields.Selection([
@@ -134,15 +134,12 @@ class ISPCPE(models.Model):
             chars = string.ascii_letters + string.digits
             self.pppoe_password = ''.join(random.choice(chars) for _ in range(8))
     
-    @api.depends('subscription_id', 'subscription_id.package_id', 'subscription_id.package_id.profile_id')
-    def _compute_mikrotik_config_id(self):
+    @api.onchange('subscription_id', 'subscription_id.package_id', 'subscription_id.package_id.profile_id')
+    def _onchange_subscription_mikrotik(self):
+        """Update router Mikrotik sesuai profil dari paket subscription"""
         for record in self:
-            if record.subscription_id and record.subscription_id.package_id and record.subscription_id.package_id.profile_id:
-                # Ambil router Mikrotik dari profil yang terkait dengan paket
+            if record.connection_type == 'pppoe' and record.subscription_id and record.subscription_id.package_id and record.subscription_id.package_id.profile_id and record.subscription_id.package_id.profile_id.mikrotik_config_id:
                 record.mikrotik_config_id = record.subscription_id.package_id.profile_id.mikrotik_config_id
-            else:
-                # Jika tidak ada paket atau profil, gunakan router Mikrotik default
-                record.mikrotik_config_id = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
 
     def _check_mikrotik_secret(self):
         """
@@ -328,6 +325,29 @@ class ISPCPE(models.Model):
             }
         }
     
+    def action_enable(self):
+        """Buka isolir CPE"""
+        self.ensure_one()
+        if self.state != 'isolated':
+            raise ValidationError('Hanya CPE terisolir yang dapat dibuka isolirnya!')
+            
+        if not self.subscription_id:
+            raise ValidationError('CPE tidak memiliki subscription!')
+            
+        # Buka isolir subscription yang akan otomatis enable PPPoE secret
+        self.subscription_id.action_enable()
+        
+        self.write({'state': 'open'})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Sukses',
+                'message': 'CPE berhasil dibuka isolirnya',
+                'type': 'success',
+            }
+        }
+    
     def action_terminate(self):
         """Terminasi CPE"""
         self.ensure_one()
@@ -362,7 +382,7 @@ class ISPCPE(models.Model):
                     _logger.warning(f'Error checking secret: {error}')
                 
                 if exists:
-                    mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+                    mikrotik = self.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
                     if not mikrotik:
                         _logger.warning('Konfigurasi Mikrotik tidak ditemukan!')
                     else:
@@ -464,7 +484,7 @@ class ISPCPE(models.Model):
         if not self.pppoe_username:
             return False
         
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        mikrotik = self.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
         if not mikrotik:
             return False
         

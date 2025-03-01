@@ -159,112 +159,223 @@
     <template id="report_financial_document">
         <t t-call="web.external_layout">
             <div class="page">
-                <t t-set="currency" t-value="doc.env.company.currency_id"/>
-                <h2>Laporan Keuangan</h2>
-                <div class="row mt32 mb32">
-                    <div class="col-3">
-                        <strong>Periode:</strong>
-                        <p><span t-esc="doc.date_from" t-options='{"widget": "date"}'/> - <span t-esc="doc.date_to" t-options='{"widget": "date"}'/></p>
-                    </div>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h3 style="font-weight: bold; font-size: 24px; margin-bottom: 10px;">LAPORAN KEUANGAN</h3>
+                    <p style="font-size: 16px;">Periode: <span t-field="docs.date_from"/> s/d <span t-field="docs.date_to"/></p>
                 </div>
                 
-                <!-- Pendapatan Berlangganan -->
-                <h4>Pendapatan Berlangganan</h4>
-                <table class="table table-sm">
-                    <thead>
+                <!-- Pesan peringatan jika tidak ada data -->
+                <div t-if="total_subscription == 0 and total_installation == 0" class="alert alert-warning" style="text-align: center; padding: 10px; margin-bottom: 20px;">
+                    <strong>Peringatan:</strong> Tidak ada data keuangan untuk periode ini. Data yang ditampilkan adalah data dummy untuk keperluan testing.
+                </div>
+                
+                <!-- Bagian Pendapatan -->
+                <h4 style="font-weight: bold; margin-top: 20px; margin-bottom: 10px;">PENDAPATAN</h4>
+                
+                <!-- Tabel Pendapatan Berlangganan -->
+                <h5 style="font-weight: bold; margin-top: 15px; margin-bottom: 10px;">Pendapatan Berlangganan</h5>
+                <table class="table table-sm table-bordered" style="margin-bottom: 20px;">
+                    <thead class="thead-light">
                         <tr>
-                            <th>Tanggal Invoice</th>
-                            <th>Pelanggan</th>
-                            <th>Paket</th>
-                            <th>Jumlah</th>
-                            <th>Status</th>
+                            <th style="width: 5%;">No</th>
+                            <th style="width: 30%;">Pelanggan</th>
+                            <th style="width: 20%;">Paket</th>
+                            <th style="width: 15%;">Periode</th>
+                            <th style="width: 15%;">Status</th>
+                            <th style="width: 15%;">Jumlah</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <t t-if="subscriptions">
-                            <t t-foreach="subscriptions" t-as="sub">
-                                <tr>
-                                    <td>
-                                        <t t-set="filtered_invoice" t-value="sub.invoice_ids.filtered(lambda i: i.invoice_date and (i.invoice_date &gt;= doc.date_from) and (i.invoice_date &lt;= doc.date_to))"/>
-                                        <t t-if="filtered_invoice">
-                                            <t t-esc="filtered_invoice[0].invoice_date" t-options='{"widget": "date"}'/>
-                                        </t>
-                                    </td>
-                                    <td><t t-esc="sub.partner_id.name"/></td>
-                                    <td><t t-esc="sub.package_id.name"/></td>
-                                    <td><t t-esc="sub.final_amount" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
-                                    <td><t t-esc="sub.state"/></td>
-                                </tr>
-                            </t>
-                        </t>
-                        <t t-if="not subscriptions">
-                            <tr>
-                                <td colspan="5" class="text-center">Tidak ada data subscription</td>
-                            </tr>
-                        </t>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="3" class="text-right"><strong>Total Pendapatan Berlangganan</strong></td>
-                            <td><strong t-esc="total_subscription" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
-                            <td></td>
+                        <t t-set="counter" t-value="1"/>
+                        <tr t-foreach="subscriptions" t-as="subscription">
+                            <td><span t-esc="counter"/><t t-set="counter" t-value="counter+1"/></td>
+                            <td><span t-field="subscription.partner_id.name"/></td>
+                            <td><span t-field="subscription.package_id.name"/></td>
+                            <td>
+                                <t t-if="subscription.next_invoice_date">
+                                    <span t-field="subscription.next_invoice_date" t-options="{'widget': 'date'}"/>
+                                </t>
+                                <t t-else="">
+                                    <span>-</span>
+                                </t>
+                            </td>
+                            <td><span t-field="subscription.state"/></td>
+                            <td class="text-right">
+                                <span t-field="subscription.final_amount" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/>
+                            </td>
                         </tr>
-                    </tfoot>
-                </table>
-
-                <!-- Pendapatan Instalasi -->
-                <h4>Pendapatan Instalasi</h4>
-                <table class="table table-sm">
-                    <thead>
+                        <tr t-if="not subscriptions">
+                            <td colspan="6" class="text-center">Tidak ada data pendapatan berlangganan</td>
+                        </tr>
                         <tr>
-                            <th>Tanggal</th>
-                            <th>No. Invoice</th>
-                            <th>Pelanggan</th>
-                            <th>Jenis Instalasi</th>
-                            <th>Jumlah</th>
-                            <th>Status</th>
+                            <td colspan="5" class="text-right"><strong>Total Pendapatan Berlangganan:</strong></td>
+                            <td class="text-right"><strong><span t-esc="total_subscription" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/></strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <!-- Tabel Pendapatan Instalasi -->
+                <h5 style="font-weight: bold; margin-top: 15px; margin-bottom: 10px;">Pendapatan Instalasi</h5>
+                <table class="table table-sm table-bordered" style="margin-bottom: 20px;">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 5%;">No</th>
+                            <th style="width: 30%;">Pelanggan</th>
+                            <th style="width: 20%;">Tipe Instalasi</th>
+                            <th style="width: 15%;">Tanggal</th>
+                            <th style="width: 15%;">Status</th>
+                            <th style="width: 15%;">Jumlah</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <t t-if="installations">
-                            <t t-foreach="installations" t-as="inst">
-                                <tr>
-                                    <td><t t-esc="inst.date" t-options='{"widget": "date"}'/></td>
-                                    <td><t t-esc="inst.name"/></td>
-                                    <td><t t-esc="inst.partner_id.name"/></td>
-                                    <td><t t-esc="inst.installation_type_id.name"/></td>
-                                    <td><t t-esc="inst.amount" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
-                                    <td><t t-esc="inst.state"/></td>
-                                </tr>
-                            </t>
-                        </t>
-                        <t t-if="not installations">
-                            <tr>
-                                <td colspan="6" class="text-center">Tidak ada data instalasi</td>
-                            </tr>
-                        </t>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="4" class="text-right"><strong>Total Pendapatan Instalasi</strong></td>
-                            <td><strong t-esc="total_installation" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
-                            <td></td>
+                        <t t-set="counter" t-value="1"/>
+                        <tr t-foreach="installations" t-as="installation">
+                            <td><span t-esc="counter"/><t t-set="counter" t-value="counter+1"/></td>
+                            <td><span t-field="installation.partner_id.name"/></td>
+                            <td>
+                                <t t-if="installation.installation_type_id">
+                                    <span t-field="installation.installation_type_id.name"/>
+                                </t>
+                                <t t-else="">
+                                    <span>-</span>
+                                </t>
+                            </td>
+                            <td><span t-field="installation.date" t-options="{'widget': 'date'}"/></td>
+                            <td><span t-field="installation.state"/></td>
+                            <td class="text-right">
+                                <span t-field="installation.amount" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/>
+                            </td>
                         </tr>
-                    </tfoot>
+                        <tr t-if="not installations">
+                            <td colspan="6" class="text-center">Tidak ada data pendapatan instalasi</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5" class="text-right"><strong>Total Pendapatan Instalasi:</strong></td>
+                            <td class="text-right"><strong><span t-esc="total_installation" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/></strong></td>
+                        </tr>
+                    </tbody>
                 </table>
-
-                <!-- Total Keseluruhan -->
-                <div class="row justify-content-end">
+                
+                <!-- Total Pendapatan -->
+                <div class="row" style="margin-bottom: 30px;">
+                    <div class="col-8"></div>
                     <div class="col-4">
-                        <table class="table table-sm">
-                            <tr class="border-black">
-                                <td><strong>Total Pendapatan</strong></td>
-                                <td class="text-right">
-                                    <strong t-esc="total_subscription + total_installation" t-options='{"widget": "monetary", "display_currency": currency}'/>
+                        <table class="table table-sm table-bordered">
+                            <tr>
+                                <td style="width: 70%;"><strong>TOTAL PENDAPATAN:</strong></td>
+                                <td style="width: 30%;" class="text-right">
+                                    <strong><span t-esc="total_subscription + total_installation" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/></strong>
                                 </td>
                             </tr>
                         </table>
                     </div>
+                </div>
+                
+                <!-- Bagian Piutang -->
+                <h4 style="font-weight: bold; margin-top: 30px; margin-bottom: 10px;">PIUTANG</h4>
+                
+                <!-- Tabel Piutang Berlangganan -->
+                <h5 style="font-weight: bold; margin-top: 15px; margin-bottom: 10px;">Piutang Berlangganan</h5>
+                <table class="table table-sm table-bordered" style="margin-bottom: 20px;">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 5%;">No</th>
+                            <th style="width: 30%;">Pelanggan</th>
+                            <th style="width: 20%;">Paket</th>
+                            <th style="width: 15%;">Periode</th>
+                            <th style="width: 15%;">Status</th>
+                            <th style="width: 15%;">Jumlah</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-set="counter" t-value="1"/>
+                        <tr t-foreach="subscription_receivables" t-as="subscription">
+                            <td><span t-esc="counter"/><t t-set="counter" t-value="counter+1"/></td>
+                            <td><span t-field="subscription.partner_id.name"/></td>
+                            <td><span t-field="subscription.package_id.name"/></td>
+                            <td>
+                                <t t-if="subscription.next_invoice_date">
+                                    <span t-field="subscription.next_invoice_date" t-options="{'widget': 'date'}"/>
+                                </t>
+                                <t t-else="">
+                                    <span>-</span>
+                                </t>
+                            </td>
+                            <td><span t-field="subscription.state"/></td>
+                            <td class="text-right">
+                                <span t-field="subscription.final_amount" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/>
+                            </td>
+                        </tr>
+                        <tr t-if="not subscription_receivables">
+                            <td colspan="6" class="text-center">Tidak ada data piutang berlangganan</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5" class="text-right"><strong>Total Piutang Berlangganan:</strong></td>
+                            <td class="text-right"><strong><span t-esc="total_subscription_receivable" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/></strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <!-- Tabel Piutang Instalasi -->
+                <h5 style="font-weight: bold; margin-top: 15px; margin-bottom: 10px;">Piutang Instalasi</h5>
+                <table class="table table-sm table-bordered" style="margin-bottom: 20px;">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 5%;">No</th>
+                            <th style="width: 30%;">Pelanggan</th>
+                            <th style="width: 20%;">Tipe Instalasi</th>
+                            <th style="width: 15%;">Tanggal</th>
+                            <th style="width: 15%;">Status</th>
+                            <th style="width: 15%;">Jumlah</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-set="counter" t-value="1"/>
+                        <tr t-foreach="installation_receivables" t-as="installation">
+                            <td><span t-esc="counter"/><t t-set="counter" t-value="counter+1"/></td>
+                            <td><span t-field="installation.partner_id.name"/></td>
+                            <td>
+                                <t t-if="installation.installation_type_id">
+                                    <span t-field="installation.installation_type_id.name"/>
+                                </t>
+                                <t t-else="">
+                                    <span>-</span>
+                                </t>
+                            </td>
+                            <td><span t-field="installation.date" t-options="{'widget': 'date'}"/></td>
+                            <td><span t-field="installation.state"/></td>
+                            <td class="text-right">
+                                <span t-field="installation.amount" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/>
+                            </td>
+                        </tr>
+                        <tr t-if="not installation_receivables">
+                            <td colspan="6" class="text-center">Tidak ada data piutang instalasi</td>
+                        </tr>
+                        <tr>
+                            <td colspan="5" class="text-right"><strong>Total Piutang Instalasi:</strong></td>
+                            <td class="text-right"><strong><span t-esc="total_installation_receivable" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/></strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <!-- Total Piutang -->
+                <div class="row" style="margin-bottom: 30px;">
+                    <div class="col-8"></div>
+                    <div class="col-4">
+                        <table class="table table-sm table-bordered">
+                            <tr>
+                                <td style="width: 70%;"><strong>TOTAL PIUTANG:</strong></td>
+                                <td style="width: 30%;" class="text-right">
+                                    <strong><span t-esc="total_subscription_receivable + total_installation_receivable" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/></strong>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Catatan kaki -->
+                <div t-if="total_subscription == 0 and total_installation == 0" class="alert alert-info" style="text-align: center; padding: 10px; margin-top: 30px;">
+                    <small>Catatan: Data yang ditampilkan adalah data dummy untuk keperluan testing.</small>
                 </div>
             </div>
         </t>
@@ -272,8 +383,16 @@
 
     <template id="report_financial">
         <t t-call="web.html_container">
-            <t t-foreach="docs" t-as="doc">
-                <t t-call="dkt_isp_billing.report_financial_document"/>
+            <!-- Jika docs ada, gunakan foreach -->
+            <t t-if="docs and len(docs) > 0">
+                <t t-foreach="docs" t-as="doc">
+                    <t t-call="dkt_isp_billing.report_financial_document" t-lang="user.lang"/>
+                </t>
+            </t>
+            <!-- Jika docs kosong, gunakan data langsung -->
+            <t t-else="">
+                <t t-set="doc" t-value="False"/>
+                <t t-call="dkt_isp_billing.report_financial_document" t-lang="user.lang"/>
             </t>
         </t>
     </template>
@@ -282,27 +401,49 @@
     <template id="report_profit_loss_document">
         <t t-call="web.external_layout">
             <div class="page">
-                <t t-set="currency" t-value="doc.env.company.currency_id"/>
-                <h2>Laporan Laba Rugi</h2>
+                <t t-set="currency" t-value="env.company.currency_id"/>
+                <h2 style="text-align: center; font-weight: bold;">LAPORAN LABA RUGI</h2>
+
+                <!-- Tampilkan periode yang dipilih -->
                 <div class="row mt32 mb32">
                     <div class="col-3">
                         <strong>Periode:</strong>
-                        <p><span t-esc="doc.date_from" t-options='{"widget": "date"}'/> - <span t-esc="doc.date_to" t-options='{"widget": "date"}'/></p>
+                        <p t-if="doc and doc.date_from and doc.date_to">
+                            <span t-esc="doc.date_from" t-options='{"widget": "date"}'/> - <span t-esc="doc.date_to" t-options='{"widget": "date"}'/>
+                        </p>
+                        <p t-if="data and data.get('form') and data['form'].get('date_from') and data['form'].get('date_to')">
+                            <span t-esc="data['form']['date_from']" t-options='{"widget": "date"}'/> - <span t-esc="data['form']['date_to']" t-options='{"widget": "date"}'/>
+                        </p>
                     </div>
                 </div>
 
+                <!-- Pesan peringatan jika tidak ada data -->
+                <div t-if="total_revenue == 0 and total_cost == 0" class="alert alert-warning" role="alert">
+                    <strong>Perhatian!</strong> Tidak ada data keuangan dalam periode yang dipilih. Nilai yang ditampilkan adalah data dummy untuk testing.
+                </div>
+
                 <!-- Pendapatan -->
-                <h4>Pendapatan</h4>
-                <table class="table table-sm">
+                <h4 style="font-weight: bold; margin-top: 20px;">PENDAPATAN</h4>
+                <table class="table table-sm table-bordered">
                     <tr>
                         <td>Pendapatan Berlangganan</td>
-                        <td class="text-right"><span t-esc="total_subscription" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
+                        <td class="text-right">
+                            <span t-esc="total_subscription" t-options='{"widget": "monetary", "display_currency": currency}'/>
+                        </td>
                     </tr>
                     <tr>
                         <td>Pendapatan Instalasi</td>
-                        <td class="text-right"><span t-esc="total_installation" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
+                        <td class="text-right">
+                            <span t-esc="total_installation" t-options='{"widget": "monetary", "display_currency": currency}'/>
+                        </td>
                     </tr>
-                    <tr class="border-black">
+                    <tr>
+                        <td>Penjualan</td>
+                        <td class="text-right">
+                            <span t-esc="total_sales" t-options='{"widget": "monetary", "display_currency": currency}'/>
+                        </td>
+                    </tr>
+                    <tr class="border-black bg-light">
                         <td><strong>Total Pendapatan</strong></td>
                         <td class="text-right">
                             <strong t-esc="total_revenue" t-options='{"widget": "monetary", "display_currency": currency}'/>
@@ -311,17 +452,21 @@
                 </table>
 
                 <!-- Biaya -->
-                <h4>Biaya Operasional</h4>
-                <table class="table table-sm">
+                <h4 style="font-weight: bold; margin-top: 20px;">BIAYA OPERASIONAL</h4>
+                <table class="table table-sm table-bordered">
                     <tr>
                         <td>Biaya Perangkat</td>
-                        <td class="text-right"><span t-esc="total_device_cost" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
+                        <td class="text-right">
+                            <span t-esc="total_device_cost" t-options='{"widget": "monetary", "display_currency": currency}'/>
+                        </td>
                     </tr>
                     <tr>
                         <td>Biaya Maintenance</td>
-                        <td class="text-right"><span t-esc="total_maintenance" t-options='{"widget": "monetary", "display_currency": currency}'/></td>
+                        <td class="text-right">
+                            <span t-esc="total_maintenance" t-options='{"widget": "monetary", "display_currency": currency}'/>
+                        </td>
                     </tr>
-                    <tr class="border-black">
+                    <tr class="border-black bg-light">
                         <td><strong>Total Biaya</strong></td>
                         <td class="text-right">
                             <strong t-esc="total_cost" t-options='{"widget": "monetary", "display_currency": currency}'/>
@@ -330,11 +475,11 @@
                 </table>
 
                 <!-- Laba/Rugi -->
-                <div class="row justify-content-end">
+                <div class="row justify-content-end mt-4">
                     <div class="col-4">
-                        <table class="table table-sm">
-                            <tr class="border-black">
-                                <td><strong>Laba/Rugi Bersih</strong></td>
+                        <table class="table table-sm table-bordered">
+                            <tr class="border-black bg-light">
+                                <td><strong>LABA/RUGI BERSIH</strong></td>
                                 <td class="text-right">
                                     <strong t-esc="total_revenue - total_cost" t-options='{"widget": "monetary", "display_currency": currency}'/>
                                 </td>
@@ -342,14 +487,29 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Footer note jika data kosong -->
+                <div t-if="total_revenue == 0 and total_cost == 0" class="mt-4">
+                    <small class="text-muted">
+                        <i>Catatan: Tidak ada data transaksi dalam periode yang dipilih. Data yang ditampilkan adalah data dummy untuk testing.</i>
+                    </small>
+                </div>
             </div>
         </t>
     </template>
 
     <template id="report_profit_loss">
         <t t-call="web.html_container">
-            <t t-foreach="docs" t-as="doc">
-                <t t-call="dkt_isp_billing.report_profit_loss_document"/>
+            <!-- Jika docs ada, gunakan foreach -->
+            <t t-if="docs and len(docs) > 0">
+                <t t-foreach="docs" t-as="doc">
+                    <t t-call="dkt_isp_billing.report_profit_loss_document" t-lang="user.lang"/>
+                </t>
+            </t>
+            <!-- Jika docs kosong, gunakan data langsung -->
+            <t t-else="">
+                <t t-set="doc" t-value="False"/>
+                <t t-call="dkt_isp_billing.report_profit_loss_document" t-lang="user.lang"/>
             </t>
         </t>
     </template>

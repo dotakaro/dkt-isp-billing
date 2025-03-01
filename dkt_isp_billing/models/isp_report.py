@@ -1,5 +1,9 @@
 from odoo import models, fields, api
 from datetime import datetime, timedelta
+import logging
+from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
 
 class ISPReport(models.Model):
     _name = 'isp.report'
@@ -52,128 +56,71 @@ class ISPReport(models.Model):
         return report_data
         
     def action_generate_report(self):
+        """Generate report based on report type"""
         self.ensure_one()
+        self.state = 'generated'
         
-        # Set report type for different report actions
         if self.report_type == 'customer':
-            domain = []
-            if self.date_from:
-                domain.append(('create_date', '>=', self.date_from))
-            if self.date_to:
-                domain.append(('create_date', '<=', self.date_to))
-            customers = self.env['res.partner'].search(domain)
-            data = {
-                'ids': self.ids,
-                'model': 'isp.report',
-                'form': {
-                    'date_from': self.date_from,
-                    'date_to': self.date_to,
-                    'state': self.state,
-                    'customers': customers.ids,
-                }
-            }
-            return self.env.ref('dkt_isp_billing.action_report_customer').report_action(self, data=data)
-            
+            return self.env.ref('dkt_isp_billing.action_report_customer').report_action(self)
         elif self.report_type == 'cpe':
-            # Get CPE data
-            domain = []
-            if self.date_from:
-                domain.append(('create_date', '>=', self.date_from))
-            if self.date_to:
-                domain.append(('create_date', '<=', self.date_to))
-            cpes = self.env['isp.cpe'].search(domain)
-            data = {
-                'ids': self.ids,
-                'model': 'isp.report',
-                'form': {
-                    'date_from': self.date_from,
-                    'date_to': self.date_to,
-                    'cpes': cpes.ids,
-                }
-            }
-            return self.env.ref('dkt_isp_billing.action_report_cpe').report_action(self, data=data)
-            
+            return self.env.ref('dkt_isp_billing.action_report_cpe').report_action(self)
         elif self.report_type == 'package':
-            # Get package data
-            domain = []
-            packages = self.env['isp.package'].search(domain)
-            data = {
-                'ids': self.ids,
-                'model': 'isp.report',
-                'form': {
-                    'date_from': self.date_from,
-                    'date_to': self.date_to,
-                    'packages': packages.ids,
-                }
-            }
-            return self.env.ref('dkt_isp_billing.action_report_package').report_action(self, data=data)
-            
+            return self.env.ref('dkt_isp_billing.action_report_package').report_action(self)
         elif self.report_type == 'financial':
-            # Get financial data
-            subscription_domain = [
-                ('invoice_ids.invoice_date', '>=', self.date_from),
-                ('invoice_ids.invoice_date', '<=', self.date_to)
-            ]
-            subscriptions = self.env['isp.subscription'].search(subscription_domain)
-            total_subscription = sum(subscriptions.mapped('final_amount'))
+            _logger.info('Generating Financial Report')
             
-            installation_domain = [
-                ('date', '>=', self.date_from),
-                ('date', '<=', self.date_to)
-            ]
-            installations = self.env['isp.installation.fee'].search(installation_domain)
-            total_installation = sum(installations.mapped('amount'))
-            
-            data = {
-                'ids': self.ids,
-                'model': 'isp.report',
-                'form': {
-                    'date_from': self.date_from,
-                    'date_to': self.date_to,
-                    'subscriptions': subscriptions.ids,
-                    'installations': installations.ids,
-                    'total_subscription': total_subscription,
-                    'total_installation': total_installation,
+            try:
+                # Tidak perlu lagi mengambil data di sini karena akan diambil langsung di _get_report_values
+                # Cukup siapkan data minimal yang diperlukan
+                data = {
+                    'ids': self.ids,
+                    'model': 'isp.report',
+                    'form': {
+                        'date_from': self.date_from,
+                        'date_to': self.date_to,
+                    }
                 }
-            }
-            return self.env.ref('dkt_isp_billing.action_report_financial').report_action(self, data=data)
+                
+                _logger.info(f'Financial Report Data: {data}')
+                
+                # Ubah status menjadi generated
+                self.write({'state': 'generated'})
+                
+                # Kembalikan action untuk menampilkan laporan
+                return self.env.ref('dkt_isp_billing.action_report_financial').report_action(self, data=data)
+            except Exception as e:
+                _logger.error(f'Error generating financial report: {str(e)}')
+                # Tampilkan pesan error ke user
+                raise UserError(f'Terjadi kesalahan saat membuat laporan keuangan: {str(e)}')
             
         elif self.report_type == 'profit_loss':
-            # Get profit loss data
-            # Similar to financial but add expenses
-            subscription_domain = [
-                ('invoice_ids.invoice_date', '>=', self.date_from),
-                ('invoice_ids.invoice_date', '<=', self.date_to)
-            ]
-            subscriptions = self.env['isp.subscription'].search(subscription_domain)
-            total_subscription = sum(subscriptions.mapped('final_amount'))
+            # Ambil data dari jurnal akuntansi untuk laporan laba rugi
+            _logger.info('Generating Profit Loss Report')
             
-            installation_domain = [
-                ('date', '>=', self.date_from),
-                ('date', '<=', self.date_to)
-            ]
-            installations = self.env['isp.installation.fee'].search(installation_domain)
-            total_installation = sum(installations.mapped('amount'))
-            
-            # Add dummy expense data for now
-            total_device_cost = 0.0
-            total_maintenance = 0.0
-            
-            data = {
-                'ids': self.ids,
-                'model': 'isp.report',
-                'form': {
-                    'date_from': self.date_from,
-                    'date_to': self.date_to,
-                    'total_subscription': total_subscription,
-                    'total_installation': total_installation,
-                    'total_revenue': total_subscription + total_installation,
-                    'total_device_cost': total_device_cost,
-                    'total_maintenance': total_maintenance,
-                    'total_cost': total_device_cost + total_maintenance,
+            try:
+                # Siapkan data minimal yang diperlukan
+                data = {
+                    'ids': [self.id],
+                    'model': 'isp.report',
+                    'form': {
+                        'date_from': self.date_from,
+                        'date_to': self.date_to,
+                    }
                 }
-            }
-            return self.env.ref('dkt_isp_billing.action_report_profit_loss').report_action(self, data=data)
+                
+                _logger.info(f'Profit Loss Report data: {data}')
+                
+                # Ubah status menjadi generated
+                self.write({'state': 'generated'})
+                
+                # Kembalikan action untuk menampilkan laporan
+                return self.env.ref('dkt_isp_billing.action_report_profit_loss').with_context(landscape=True).report_action(self, data=data)
+            except Exception as e:
+                _logger.error(f'Error generating profit loss report: {str(e)}')
+                # Tampilkan pesan error ke user
+                raise UserError(f'Terjadi kesalahan saat membuat laporan laba rugi: {str(e)}')
+        
+        return True
         
     def _get_customer_data(self):
         """Get customer data for report"""
@@ -261,6 +208,49 @@ class ISPReport(models.Model):
     def _generate_profit_loss_report(self):
         data = self._prepare_report_data()
         return self.env.ref('dkt_isp_billing.action_report_profit_loss').report_action(self, data=data)
+
+    # Metode untuk menghasilkan nilai dummy/default jika tidak ada data
+    def _generate_test_data(self):
+        """Generate test data jika tidak ada data real"""
+        _logger.info("Generating test data untuk laporan")
+        
+        # Data subscription default jika kosong
+        if not hasattr(self, 'total_subscription') or not self.total_subscription:
+            self.total_subscription = 5000000.0
+            _logger.info(f"Using default subscription amount: {self.total_subscription}")
+        
+        # Data installation default jika kosong
+        if not hasattr(self, 'total_installation') or not self.total_installation:
+            self.total_installation = 2500000.0
+            _logger.info(f"Using default installation amount: {self.total_installation}")
+        
+        # Data device cost default
+        if not hasattr(self, 'total_device_cost') or not self.total_device_cost:
+            self.total_device_cost = 1500000.0
+            _logger.info(f"Using default device cost: {self.total_device_cost}")
+        
+        # Data maintenance default
+        if not hasattr(self, 'total_maintenance') or not self.total_maintenance:
+            self.total_maintenance = 1000000.0
+            _logger.info(f"Using default maintenance cost: {self.total_maintenance}")
+        
+        # Hitung total
+        if not hasattr(self, 'total_revenue') or not self.total_revenue:
+            self.total_revenue = self.total_subscription + self.total_installation
+            _logger.info(f"Calculated total revenue: {self.total_revenue}")
+        
+        if not hasattr(self, 'total_cost') or not self.total_cost:
+            self.total_cost = self.total_device_cost + self.total_maintenance
+            _logger.info(f"Calculated total cost: {self.total_cost}")
+            
+        return {
+            'total_subscription': self.total_subscription,
+            'total_installation': self.total_installation,
+            'total_revenue': self.total_revenue,
+            'total_device_cost': self.total_device_cost,
+            'total_maintenance': self.total_maintenance,
+            'total_cost': self.total_cost,
+        }
 
 class ISPReportCustomer(models.AbstractModel):
     _name = 'report.dkt_isp_billing.report_customer'
@@ -355,6 +345,9 @@ class ISPReportFinancial(models.AbstractModel):
 
     @api.model
     def _get_report_values(self, docids, data=None):
+        _logger.info(f'Financial Report - Data received: {data}')
+        _logger.info(f'Financial Report - DocIDs: {docids}')
+        
         if not data:
             data = {}
             
@@ -369,38 +362,382 @@ class ISPReportFinancial(models.AbstractModel):
         date_from = report.date_from
         date_to = report.date_to
         
-        # Pendapatan Berlangganan
-        subscriptions = self.env['isp.subscription'].search([
-            ('state', '=', 'open')
-        ])
+        # Ambil data langsung dari jurnal akuntansi
+        _logger.info(f'Financial Report - Mengambil data dari jurnal akuntansi untuk periode {date_from} - {date_to}')
         
-        # Filter subscription berdasarkan invoice yang dibuat pada periode tersebut
-        filtered_subscriptions = subscriptions.filtered(lambda s: 
-            any(inv.invoice_date and 
-                date_from <= inv.invoice_date <= date_to 
-                for inv in s.invoice_ids)
-        )
+        # Definisikan akun-akun yang digunakan dalam laporan
+        # Akun Pendapatan
+        revenue_accounts = {
+            'subscription': '40010',  # Pendapatan Layanan ISP
+            'installation': '40020',  # Pendapatan Instalasi
+            'sales': '41000020',  # Penjualan ISP
+        }
         
-        # Pendapatan Instalasi
-        installations = self.env['isp.installation.fee'].search([
+        # Akun Piutang - Gunakan akun piutang default dari sistem
+        receivable_accounts = {
+            'customer': self.env['ir.property']._get('property_account_receivable_id', 'res.partner').code,  # Piutang Pelanggan
+        }
+        
+        # Jika kode akun piutang default tidak ditemukan, gunakan kode akun piutang ISP
+        if not receivable_accounts['customer']:
+            receivable_account = self.env.ref('dkt_isp_billing.receivable_account', raise_if_not_found=False)
+            if receivable_account:
+                receivable_accounts['customer'] = receivable_account.code
+            else:
+                receivable_accounts['customer'] = '11210012'  # Piutang Pelanggan ISP
+        
+        # Inisialisasi data
+        subscriptions = []
+        installations = []
+        subscription_receivables = []
+        installation_receivables = []
+        total_subscription = 0.0
+        total_installation = 0.0
+        total_subscription_receivable = 0.0
+        total_installation_receivable = 0.0
+        
+        # 1. Ambil data pendapatan dari jurnal akuntansi
+        # Cari semua jurnal entry dalam periode
+        all_moves = self.env['account.move'].search([
             ('date', '>=', date_from),
             ('date', '<=', date_to),
-            ('state', '=', 'paid')
+            ('state', '=', 'posted'),
+            ('move_type', '=', 'out_invoice')  # Hanya invoice keluar
         ])
         
-        total_subscription = sum(filtered_subscriptions.mapped('final_amount'))
-        total_installation = sum(installations.mapped('amount'))
+        _logger.info(f'Financial Report - Menemukan {len(all_moves)} jurnal entry')
+        
+        # Ambil semua jurnal line untuk akun pendapatan
+        revenue_lines = self.env['account.move.line'].search([
+            ('move_id', 'in', all_moves.ids),
+            ('account_id.code', '=', revenue_accounts['subscription'])
+        ])
+        
+        _logger.info(f'Financial Report - Menemukan {len(revenue_lines)} baris jurnal pendapatan')
+        
+        # Pisahkan berdasarkan label/nama produk
+        for line in revenue_lines:
+            # Cek apakah ini pendapatan berlangganan atau instalasi
+            if line.move_id.payment_state == 'paid':
+                # Cek dari nama produk atau deskripsi
+                if line.name and ('instalasi' in line.name.lower() or 'pasang baru' in line.name.lower()):
+                    # Ini adalah pendapatan instalasi
+                    installations.append({
+                        'id': line.id,
+                        'partner_id': line.partner_id,
+                        'name': line.name,
+                        'date': line.date,
+                        'amount': line.price_subtotal,
+                        'state': 'paid',
+                        'installation_type_id': False
+                    })
+                    total_installation += line.price_subtotal
+                else:
+                    # Ini adalah pendapatan berlangganan
+                    subscriptions.append({
+                        'id': line.id,
+                        'partner_id': line.partner_id,
+                        'name': line.name,
+                        'date': line.date,
+                        'final_amount': line.price_subtotal,
+                        'state': 'open',
+                        'package_id': False,
+                        'next_invoice_date': line.date
+                    })
+                    total_subscription += line.price_subtotal
+        
+        # 2. Ambil data piutang dari jurnal akuntansi
+        receivable_lines = self.env['account.move.line'].search([
+            ('move_id', 'in', all_moves.ids),
+            ('account_id.code', '=', receivable_accounts['customer']),
+            ('move_id.payment_state', 'in', ['not_paid', 'partial'])
+        ])
+        
+        _logger.info(f'Financial Report - Menemukan {len(receivable_lines)} baris jurnal piutang')
+        
+        # Pisahkan berdasarkan label/nama produk
+        for line in receivable_lines:
+            # Cari invoice line terkait untuk menentukan jenis piutang
+            invoice_lines = line.move_id.invoice_line_ids
+            
+            for inv_line in invoice_lines:
+                if inv_line.name and ('instalasi' in inv_line.name.lower() or 'pasang baru' in inv_line.name.lower()):
+                    # Ini adalah piutang instalasi
+                    installation_receivables.append({
+                        'id': inv_line.id,
+                        'partner_id': line.partner_id,
+                        'name': inv_line.name,
+                        'date': line.date,
+                        'amount': inv_line.price_subtotal,
+                        'state': 'open',
+                        'installation_type_id': False
+                    })
+                    total_installation_receivable += inv_line.price_subtotal
+                else:
+                    # Ini adalah piutang berlangganan
+                    subscription_receivables.append({
+                        'id': inv_line.id,
+                        'partner_id': line.partner_id,
+                        'name': inv_line.name,
+                        'date': line.date,
+                        'final_amount': inv_line.price_subtotal,
+                        'state': 'open',
+                        'package_id': False,
+                        'next_invoice_date': line.date
+                    })
+                    total_subscription_receivable += inv_line.price_subtotal
+        
+        # Konversi data menjadi recordset yang dapat digunakan di template
+        # Untuk pendapatan berlangganan
+        subscription_records = []
+        for sub in subscriptions:
+            record = self.env['isp.subscription'].new({
+                'partner_id': sub['partner_id'],
+                'state': sub['state'],
+                'final_amount': sub['final_amount'],
+                'next_invoice_date': sub['date'],
+            })
+            # Tambahkan package_id jika ada
+            if sub.get('package_id'):
+                record.package_id = sub['package_id']
+            else:
+                # Buat package dummy
+                package = self.env['isp.package'].new({
+                    'name': 'Paket Internet'
+                })
+                record.package_id = package
+            
+            subscription_records.append(record)
+        
+        # Untuk pendapatan instalasi
+        installation_records = []
+        for inst in installations:
+            record = self.env['isp.installation.fee'].new({
+                'partner_id': inst['partner_id'],
+                'state': inst['state'],
+                'amount': inst['amount'],
+                'date': inst['date'],
+            })
+            # Tambahkan installation_type_id jika ada
+            if inst.get('installation_type_id'):
+                record.installation_type_id = inst['installation_type_id']
+            
+            installation_records.append(record)
+        
+        # Untuk piutang berlangganan
+        subscription_receivable_records = []
+        for sub in subscription_receivables:
+            record = self.env['isp.subscription'].new({
+                'partner_id': sub['partner_id'],
+                'state': sub['state'],
+                'final_amount': sub['final_amount'],
+                'next_invoice_date': sub['date'],
+            })
+            # Tambahkan package_id jika ada
+            if sub.get('package_id'):
+                record.package_id = sub['package_id']
+            else:
+                # Buat package dummy
+                package = self.env['isp.package'].new({
+                    'name': 'Paket Internet'
+                })
+                record.package_id = package
+            
+            subscription_receivable_records.append(record)
+        
+        # Untuk piutang instalasi
+        installation_receivable_records = []
+        for inst in installation_receivables:
+            record = self.env['isp.installation.fee'].new({
+                'partner_id': inst['partner_id'],
+                'state': inst['state'],
+                'amount': inst['amount'],
+                'date': inst['date'],
+            })
+            # Tambahkan installation_type_id jika ada
+            if inst.get('installation_type_id'):
+                record.installation_type_id = inst['installation_type_id']
+            
+            installation_receivable_records.append(record)
+        
+        # Jika tidak ada data riil, gunakan data dummy untuk testing
+        if not subscription_records and not installation_records:
+            _logger.info('Financial Report - Tidak ada data dari jurnal akuntansi, mencoba dari invoice')
+            
+            # Definisikan akun pendapatan untuk pengecekan
+            isp_service_account = self.env.ref('dkt_isp_billing.revenue_account', raise_if_not_found=False)
+            installation_revenue_account = self.env.ref('dkt_isp_billing.installation_revenue_account', raise_if_not_found=False)
+            sales_account = self.env.ref('dkt_isp_billing.sales_revenue_account', raise_if_not_found=False)
+            
+            # Jika tidak ditemukan dengan ref, cari berdasarkan kode
+            if not isp_service_account:
+                isp_service_account = self.env['account.account'].search([
+                    ('code', '=', '40010'),  # Pendapatan Layanan ISP
+                ], limit=1)
+            
+            if not installation_revenue_account:
+                installation_revenue_account = self.env['account.account'].search([
+                    ('code', '=', '40020'),  # Pendapatan Instalasi
+                ], limit=1)
+                
+            if not sales_account:
+                sales_account = self.env['account.account'].search([
+                    ('code', '=', '41000020'),  # Penjualan ISP
+                ], limit=1)
+            
+            # Cari invoice yang sudah diposting dalam periode tersebut
+            invoices = self.env['account.move'].search([
+                ('invoice_date', '>=', date_from),
+                ('invoice_date', '<=', date_to),
+                ('state', '=', 'posted'),
+                ('move_type', '=', 'out_invoice')
+            ])
+            
+            _logger.info(f'Financial Report - Menemukan {len(invoices)} invoice')
+            
+            # Cari invoice line yang terkait dengan subscription dan installation
+            for invoice in invoices:
+                for line in invoice.invoice_line_ids:
+                    # Cek apakah line ini terkait dengan subscription
+                    if line.product_id.name and ('langganan' in line.product_id.name.lower() or 'subscription' in line.product_id.name.lower()):
+                        total_subscription += line.price_subtotal
+                        subscriptions.append({
+                            'id': line.id,
+                            'partner_id': line.partner_id,
+                            'name': line.name,
+                            'date': invoice.invoice_date,
+                            'final_amount': line.price_subtotal,
+                            'state': 'open',
+                            'package_id': False,
+                            'next_invoice_date': invoice.invoice_date
+                        })
+                    # Cek apakah line ini terkait dengan installation
+                    elif line.product_id.name and ('pasang baru' in line.product_id.name.lower() or 'installation' in line.product_id.name.lower()):
+                        total_installation += line.price_subtotal
+                        installations.append({
+                            'id': line.id,
+                            'partner_id': line.partner_id,
+                            'name': line.name,
+                            'date': invoice.invoice_date,
+                            'amount': line.price_subtotal,
+                            'state': 'paid',
+                            'installation_type_id': False
+                        })
+                    # Jika tidak ada kategori yang cocok, cek akun
+                    elif line.account_id:
+                        if line.account_id.code == '40010' or (isp_service_account and line.account_id.id == isp_service_account.id):
+                            total_subscription += line.price_subtotal
+                            subscriptions.append({
+                                'id': line.id,
+                                'partner_id': line.partner_id,
+                                'name': line.name,
+                                'date': invoice.invoice_date,
+                                'final_amount': line.price_subtotal,
+                                'state': 'open',
+                                'package_id': False,
+                                'next_invoice_date': invoice.invoice_date
+                            })
+                        elif line.account_id.code == '40020' or (installation_revenue_account and line.account_id.id == installation_revenue_account.id):
+                            total_installation += line.price_subtotal
+                            installations.append({
+                                'id': line.id,
+                                'partner_id': line.partner_id,
+                                'name': line.name,
+                                'date': invoice.invoice_date,
+                                'amount': line.price_subtotal,
+                                'state': 'paid',
+                                'installation_type_id': False
+                            })
+                        elif line.account_id.code == '41000020' or (sales_account and line.account_id.id == sales_account.id):
+                            # Tambahkan ke pendapatan berlangganan
+                            total_subscription += line.price_subtotal
+                            subscriptions.append({
+                                'id': line.id,
+                                'partner_id': line.partner_id,
+                                'name': line.name,
+                                'date': invoice.invoice_date,
+                                'final_amount': line.price_subtotal,
+                                'state': 'open',
+                                'package_id': False,
+                                'next_invoice_date': invoice.invoice_date
+                            })
+            
+            # Konversi data menjadi recordset
+            for sub in subscriptions:
+                record = self.env['isp.subscription'].new({
+                    'partner_id': sub['partner_id'],
+                    'state': sub['state'],
+                    'final_amount': sub['final_amount'],
+                    'next_invoice_date': sub['date'],
+                })
+                # Tambahkan package_id jika ada
+                if sub.get('package_id'):
+                    record.package_id = sub['package_id']
+                else:
+                    # Buat package dummy
+                    package = self.env['isp.package'].new({
+                        'name': 'Paket Internet'
+                    })
+                    record.package_id = package
+                
+                subscription_records.append(record)
+            
+            # Untuk pendapatan instalasi
+            for inst in installations:
+                record = self.env['isp.installation.fee'].new({
+                    'partner_id': inst['partner_id'],
+                    'state': inst['state'],
+                    'amount': inst['amount'],
+                    'date': inst['date'],
+                })
+                # Tambahkan installation_type_id jika ada
+                if inst.get('installation_type_id'):
+                    record.installation_type_id = inst['installation_type_id']
+                
+                installation_records.append(record)
+                
+            # Jika masih tidak ada data, gunakan data dummy minimal
+            if not subscription_records:
+                _logger.info('Financial Report - Tidak ada data subscription, menggunakan data dummy minimal')
+                total_subscription = 0.0
+            
+            if not installation_records:
+                _logger.info('Financial Report - Tidak ada data installation, menggunakan data dummy minimal')
+                total_installation = 0.0
+        
+        _logger.info(f'Financial Report - Pendapatan Berlangganan: {total_subscription}')
+        _logger.info(f'Financial Report - Pendapatan Instalasi: {total_installation}')
+        _logger.info(f'Financial Report - Piutang Berlangganan: {total_subscription_receivable}')
+        _logger.info(f'Financial Report - Piutang Instalasi: {total_installation_receivable}')
 
         return {
             'doc_ids': docids,
             'doc_model': 'isp.report',
             'docs': report,
-            'subscriptions': filtered_subscriptions,
-            'installations': installations,
+            # Data pendapatan
+            'subscriptions': subscription_records,
+            'installations': installation_records,
             'total_subscription': total_subscription,
             'total_installation': total_installation,
+            # Data piutang
+            'subscription_receivables': subscription_receivable_records,
+            'installation_receivables': installation_receivable_records,
+            'total_subscription_receivable': total_subscription_receivable,
+            'total_installation_receivable': total_installation_receivable,
             'company': self.env.company,
         }
+        
+    def _ensure_fields_exist(self, records):
+        """Memastikan field yang diperlukan tersedia pada record"""
+        if not records:
+            return
+            
+        # Cek apakah field next_invoice_date ada
+        if not hasattr(records[0], 'next_invoice_date'):
+            _logger.warning('Field next_invoice_date tidak ditemukan pada model subscription')
+            # Tambahkan field dummy untuk menghindari error
+            for record in records:
+                record.next_invoice_date = False
 
 class ISPReportProfitLoss(models.AbstractModel):
     _name = 'report.dkt_isp_billing.report_profit_loss'
@@ -408,26 +745,141 @@ class ISPReportProfitLoss(models.AbstractModel):
 
     @api.model
     def _get_report_values(self, docids, data=None):
+        _logger.info(f'Profit Loss Report - Data received: {data}')
+        _logger.info(f'Profit Loss Report - DocIDs: {docids}')
+        
         docs = self.env['isp.report'].browse(docids)
-        date_from = data['form']['date_from']
-        date_to = data['form']['date_to']
+        _logger.info(f'Profit Loss Report - Docs: {docs}')
         
-        # Pendapatan
-        subscriptions = self.env['isp.subscription'].search([
-            ('recurring_next_date', '>=', date_from),
-            ('recurring_next_date', '<=', date_to),
-            ('state', '=', 'open')
+        # Pastikan data form ada
+        if not data or not data.get('form'):
+            _logger.error('Profit Loss Report - Data form tidak ada')
+            # Gunakan nilai kosong jika tidak ada data
+            date_from = fields.Date.today() - timedelta(days=30)
+            date_to = fields.Date.today()
+            _logger.info(f'Profit Loss Report - Using default dates: {date_from} to {date_to}')
+            
+            return {
+                'doc_ids': docids,
+                'doc_model': 'isp.report',
+                'docs': docs,
+                'data': {'form': {'date_from': date_from, 'date_to': date_to}},
+                'total_subscription': 0.0,
+                'total_installation': 0.0,
+                'total_revenue': 0.0,
+                'total_device_cost': 0.0,
+                'total_maintenance': 0.0,
+                'total_cost': 0.0,
+            }
+        else:
+            date_from = data['form']['date_from']
+            date_to = data['form']['date_to']
+            _logger.info(f'Profit Loss Report - Date range: {date_from} to {date_to}')
+        
+        # Cek jika data sudah ada dalam form
+        if all(key in data['form'] for key in ['total_subscription', 'total_installation', 'total_revenue', 'total_device_cost', 'total_maintenance', 'total_cost']):
+            _logger.info('Profit Loss Report - Using data provided in form')
+            return {
+                'doc_ids': docids,
+                'doc_model': 'isp.report',
+                'docs': docs,
+                'data': data,
+                'total_subscription': float(data['form']['total_subscription'] or 0.0),
+                'total_installation': float(data['form']['total_installation'] or 0.0),
+                'total_revenue': float(data['form']['total_revenue'] or 0.0),
+                'total_device_cost': float(data['form']['total_device_cost'] or 0.0),
+                'total_maintenance': float(data['form']['total_maintenance'] or 0.0),
+                'total_cost': float(data['form']['total_cost'] or 0.0),
+            }
+        
+        # Jika tidak ada data dari jurnal, coba ambil dari invoice
+        # Inisialisasi variabel
+        total_subscription = 0.0
+        total_installation = 0.0
+        total_sales = 0.0
+        
+        # Definisikan akun pendapatan untuk pengecekan
+        isp_service_account = self.env.ref('dkt_isp_billing.revenue_account', raise_if_not_found=False)
+        installation_revenue_account = self.env.ref('dkt_isp_billing.installation_revenue_account', raise_if_not_found=False)
+        sales_account = self.env.ref('dkt_isp_billing.sales_revenue_account', raise_if_not_found=False)
+        
+        # Jika tidak ditemukan dengan ref, cari berdasarkan kode
+        if not isp_service_account:
+            isp_service_account = self.env['account.account'].search([
+                ('code', '=', '40010'),  # Pendapatan Layanan ISP
+            ], limit=1)
+        
+        if not installation_revenue_account:
+            installation_revenue_account = self.env['account.account'].search([
+                ('code', '=', '40020'),  # Pendapatan Instalasi
+            ], limit=1)
+            
+        if not sales_account:
+            sales_account = self.env['account.account'].search([
+                ('code', '=', '41000020'),  # Penjualan ISP
+            ], limit=1)
+        
+        # Cari invoice yang sudah diposting dalam periode tersebut
+        invoices = self.env['account.move'].search([
+            ('invoice_date', '>=', date_from),
+            ('invoice_date', '<=', date_to),
+            ('state', '=', 'posted'),
+            ('move_type', '=', 'out_invoice')
         ])
         
-        installations = self.env['isp.installation.fee'].search([
-            ('date', '>=', date_from),
-            ('date', '<=', date_to),
-            ('state', '=', 'paid')
-        ])
+        _logger.info(f'Profit Loss Report - Menemukan {len(invoices)} invoice')
         
-        total_subscription = sum(subscriptions.mapped('final_amount'))
-        total_installation = sum(installations.mapped('amount'))
-        total_revenue = total_subscription + total_installation
+        # Cari invoice line yang terkait dengan subscription dan installation
+        for invoice in invoices:
+            for line in invoice.invoice_line_ids:
+                # Cek apakah line ini terkait dengan subscription
+                if line.product_id.name and ('langganan' in line.product_id.name.lower() or 'subscription' in line.product_id.name.lower()):
+                    total_subscription += line.price_subtotal
+                # Cek apakah line ini terkait dengan installation
+                elif line.product_id.name and ('pasang baru' in line.product_id.name.lower() or 'installation' in line.product_id.name.lower()):
+                    total_installation += line.price_subtotal
+                # Cek apakah line ini terkait dengan penjualan
+                elif line.product_id.name and ('penjualan' in line.product_id.name.lower() or 'sales' in line.product_id.name.lower()):
+                    total_sales += line.price_subtotal
+                # Jika tidak ada kategori yang cocok, cek akun
+                elif line.account_id:
+                    if line.account_id.code == '40010' or (isp_service_account and line.account_id.id == isp_service_account.id):
+                        total_subscription += line.price_subtotal
+                    elif line.account_id.code == '40020' or (installation_revenue_account and line.account_id.id == installation_revenue_account.id):
+                        total_installation += line.price_subtotal
+                    elif line.account_id.code == '41000020' or (sales_account and line.account_id.id == sales_account.id):
+                        total_sales += line.price_subtotal
+        
+        _logger.info(f'Profit Loss Report - Total subscription from invoices: {total_subscription}')
+        _logger.info(f'Profit Loss Report - Total installation from invoices: {total_installation}')
+        _logger.info(f'Profit Loss Report - Total sales from invoices: {total_sales}')
+        
+        # Jika masih tidak ada data, coba ambil dari model isp.subscription dan isp.installation.fee
+        if total_subscription == 0 and total_installation == 0 and total_sales == 0:
+            _logger.info('Profit Loss Report - Tidak ada data dari invoice, mencoba dari model ISP')
+            
+            # Cari subscription yang aktif
+            subscriptions = self.env['isp.subscription'].search([
+                ('state', '=', 'open'),
+                ('next_invoice_date', '>=', date_from),
+                ('next_invoice_date', '<=', date_to)
+            ])
+            
+            # Cari installation fee yang sudah dibayar
+            installations = self.env['isp.installation.fee'].search([
+                ('state', '=', 'paid'),
+                ('date', '>=', date_from),
+                ('date', '<=', date_to)
+            ])
+            
+            total_subscription = sum(subscriptions.mapped('final_amount'))
+            total_installation = sum(installations.mapped('amount'))
+            
+            _logger.info(f'Profit Loss Report - Total subscription from ISP model: {total_subscription}')
+            _logger.info(f'Profit Loss Report - Total installation from ISP model: {total_installation}')
+        
+        # Hitung total pendapatan
+        total_revenue = total_subscription + total_installation + total_sales
         
         # Biaya
         device_costs = self.env['isp.device.history'].search([
@@ -436,18 +888,52 @@ class ISPReportProfitLoss(models.AbstractModel):
         ])
         total_device_cost = sum(device_costs.mapped('cost'))
         
-        # Biaya maintenance (contoh)
-        total_maintenance = 1000000
+        # Biaya maintenance dari akun yang telah didefinisikan
+        maintenance_expense_account = self.env.ref('dkt_isp_billing.maintenance_expense_account', raise_if_not_found=False)
+        
+        if not maintenance_expense_account:
+            maintenance_expense_account = self.env['account.account'].search([
+                ('code', '=', '50020'),  # Biaya Maintenance
+            ], limit=1)
+        
+        if maintenance_expense_account:
+            maintenance_costs = self.env['account.move.line'].search([
+                ('account_id', '=', maintenance_expense_account.id),
+                ('date', '>=', date_from),
+                ('date', '<=', date_to),
+                ('move_id.state', '=', 'posted')
+            ])
+            total_maintenance = sum(maintenance_costs.mapped('balance'))
+        else:
+            # Fallback ke pencarian berdasarkan nama
+            maintenance_costs = self.env['account.move.line'].search([
+                ('date', '>=', date_from),
+                ('date', '<=', date_to),
+                ('move_id.state', '=', 'posted'),
+                ('account_id.name', 'ilike', 'maintenance')
+            ])
+            total_maintenance = sum(maintenance_costs.mapped('balance')) or 0.0
+        
         total_cost = total_device_cost + total_maintenance
-
-        return {
+        
+        _logger.info(f'Profit Loss Report - Total device cost: {total_device_cost}')
+        _logger.info(f'Profit Loss Report - Total maintenance: {total_maintenance}')
+        _logger.info(f'Profit Loss Report - Total cost: {total_cost}')
+        
+        # Siapkan data untuk template - tanpa nilai default
+        report_data = {
             'doc_ids': docids,
             'doc_model': 'isp.report',
             'docs': docs,
-            'total_subscription': total_subscription,
-            'total_installation': total_installation,
-            'total_revenue': total_revenue,
-            'total_device_cost': total_device_cost,
-            'total_maintenance': total_maintenance,
-            'total_cost': total_cost,
-        } 
+            'data': data,
+            'total_subscription': float(total_subscription),
+            'total_installation': float(total_installation),
+            'total_sales': float(total_sales),
+            'total_revenue': float(total_revenue),
+            'total_device_cost': float(total_device_cost),
+            'total_maintenance': float(total_maintenance),
+            'total_cost': float(total_cost),
+        }
+        
+        _logger.info(f'Profit Loss Report - Returning data: {report_data}')
+        return report_data 

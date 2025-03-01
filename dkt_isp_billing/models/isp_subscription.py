@@ -144,18 +144,27 @@ class ISPSubscription(models.Model):
         if not sale_journal:
             raise ValidationError('Tidak ditemukan jurnal penjualan. Silakan buat jurnal penjualan terlebih dahulu.')
             
-        # Dapatkan akun pendapatan dari produk/paket
-        income_account = self.package_id.product_id.property_account_income_id or \
-                        self.package_id.product_id.categ_id.property_account_income_categ_id
-        if not income_account:
-            raise ValidationError('Tidak ditemukan akun pendapatan pada produk/paket. Silakan atur akun pendapatan pada produk atau kategori produk.')
+        # Cari akun pendapatan layanan ISP dari data XML
+        isp_service_account = self.env.ref('dkt_isp_billing.revenue_account', raise_if_not_found=False)
+        if not isp_service_account:
+            isp_service_account = self.env['account.account'].search([
+                ('code', '=', '4001'),  # Pendapatan Layanan ISP
+            ], limit=1)
+            
+        # Jika tidak ditemukan, gunakan akun pendapatan dari produk/paket
+        if not isp_service_account:
+            isp_service_account = self.package_id.product_id.property_account_income_id or \
+                            self.package_id.product_id.categ_id.property_account_income_categ_id
+                            
+        if not isp_service_account:
+            raise ValidationError('Tidak ditemukan akun pendapatan. Silakan atur akun pendapatan pada produk atau kategori produk.')
         
         # Siapkan line invoice utama
         invoice_line = {
             'name': f'Subscription {self.name} - {self.package_id.name}',
             'quantity': 1,
             'price_unit': self.amount,
-            'account_id': income_account.id,
+            'account_id': isp_service_account.id,
         }
         
         # Jika ada diskon, tambahkan line diskon
@@ -396,7 +405,7 @@ class ISPSubscription(models.Model):
             raise ValidationError('PPPoE Profile belum memiliki nama!')
             
         # Update profile di Mikrotik sesuai paket
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        mikrotik = self.cpe_id.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
         if not mikrotik:
             raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
             
@@ -427,11 +436,52 @@ class ISPSubscription(models.Model):
                 secrets = secret_api.get(name=pppoe_username)
                 
                 if not secrets:
-                    raise ValidationError(f'PPPoE secret {pppoe_username} tidak ditemukan di Mikrotik!')
+                    # Secret tidak ditemukan, buat baru
+                    _logger.info(f'PPPoE secret {pppoe_username} tidak ditemukan di Mikrotik. Membuat secret baru.')
+                    
+                    # Buat PPPoE secret baru
+                    secret_data = {
+                        'name': pppoe_username,
+                        'password': self.cpe_id.pppoe_password,
+                        'service': 'pppoe',
+                        'profile': profile_name,
+                        'comment': f'Customer: {self.partner_id.name}',
+                        'disabled': 'no'  # Langsung aktif
+                    }
+                    
+                    _logger.info(f'Creating new secret with data: {secret_data}')
+                    secret_api.add(**secret_data)
+                    
+                    # Update status
+                    self.write({'state': 'open'})
+                    
+                    # Update status CPE jika belum aktif
+                    if self.cpe_id.state != 'open':
+                        self.cpe_id.write({'state': 'open'})
+                        
+                    # Update status pelanggan jika belum aktif
+                    if self.partner_id.state != 'active':
+                        self.partner_id.write({'state': 'active'})
+                    
+                    # Tampilkan notifikasi sukses
+                    self.env['bus.bus']._sendone(
+                        self.env.user.partner_id,
+                        'simple_notification',
+                        {
+                            'title': 'Sukses',
+                            'message': f'Subscription berhasil diaktifkan dengan membuat secret baru untuk {pppoe_username}',
+                            'type': 'success',
+                        }
+                    )
+                    
+                    return {
+                        'type': 'ir.actions.client',
+                        'tag': 'reload',
+                    }
                     
                 _logger.info(f'Secret response from Mikrotik: {secrets}')
                 
-                # Update profile dan enable secret
+                # Secret ditemukan, update profile dan enable secret
                 secret = secrets[0]
                 if not secret:
                     raise ValidationError(f'Gagal mendapatkan data secret untuk {pppoe_username}')
@@ -505,7 +555,7 @@ class ISPSubscription(models.Model):
             raise ValidationError('CPE belum memiliki PPPoE username!')
             
         # Update profile di Mikrotik sesuai paket
-        mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        mikrotik = self.cpe_id.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
         if not mikrotik:
             raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
             
@@ -647,7 +697,7 @@ class ISPSubscription(models.Model):
             # Hanya lakukan operasi Mikrotik jika ada username PPPoE
             if has_pppoe and pppoe_username:
                 # Update profile di Mikrotik sesuai paket
-                mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+                mikrotik = self.cpe_id.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
                 if not mikrotik:
                     # Jika tidak ada konfigurasi Mikrotik, lanjutkan tanpa error
                     _logger.warning('Konfigurasi Mikrotik tidak ditemukan!')
@@ -724,6 +774,121 @@ class ISPSubscription(models.Model):
                 'type': 'success',
             }
         }
+
+    def action_enable(self):
+        """Buka isolir subscription dan enable PPPoE secret"""
+        self.ensure_one()
+        if self.state != 'isolated':
+            raise ValidationError('Hanya subscription terisolir yang dapat dibuka isolirnya!')
+            
+        if not self.cpe_id:
+            raise ValidationError('CPE harus diisi!')
+            
+        if not self.cpe_id.pppoe_username:
+            raise ValidationError('CPE belum memiliki PPPoE username!')
+            
+        # Update profile di Mikrotik sesuai paket
+        mikrotik = self.cpe_id.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        if not mikrotik:
+            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+            
+        try:
+            # Parse host dan port
+            host, port = mikrotik._parse_host_port()
+            
+            # Buat koneksi ke Mikrotik
+            connection = routeros_api.RouterOsApiPool(
+                host=str(host),
+                username=str(mikrotik.username),
+                password=str(mikrotik.password),
+                port=int(port),
+                plaintext_login=True
+            )
+            
+            api = connection.get_api()
+            if not api:
+                raise ValidationError('Gagal terhubung ke Mikrotik!')
+                
+            try:
+                # Pastikan username dalam bentuk string
+                pppoe_username = str(self.cpe_id.pppoe_username or '')
+                
+                # Cek PPPoE secret
+                secret_api = api.get_resource('/ppp/secret')
+                secrets = secret_api.get(name=pppoe_username)
+                
+                if not secrets:
+                    raise ValidationError(f'PPPoE secret {pppoe_username} tidak ditemukan di Mikrotik!')
+                    
+                _logger.info(f'Secret response from Mikrotik: {secrets}')
+                
+                # Update profile dan enable secret
+                secret = secrets[0]
+                if not secret:
+                    raise ValidationError(f'Gagal mendapatkan data secret untuk {pppoe_username}')
+                
+                # Coba ambil ID dengan berbagai kemungkinan key
+                secret_id = secret.get('.id') or secret.get('id') or secret.get('.uid')
+                if not secret_id:
+                    # Jika tidak ada ID, coba list semua key yang ada
+                    available_keys = list(secret.keys())
+                    _logger.info(f'Available keys in secret: {available_keys}')
+                    raise ValidationError(f'Gagal mendapatkan ID secret untuk {pppoe_username}. Available keys: {available_keys}')
+                
+                _logger.info(f'Found secret ID: {secret_id}')
+                
+                # Enable secret
+                update_data = {
+                    'id': str(secret_id),
+                    'disabled': 'no'
+                }
+                _logger.info(f'Updating secret with data: {update_data}')
+                
+                secret_api.set(**update_data)
+                
+                # Update status
+                self.write({'state': 'open'})
+                
+                # Update status CPE jika masih terisolir
+                if self.cpe_id.state == 'isolated':
+                    self.cpe_id.write({'state': 'open'})
+                    
+                # Update status pelanggan jika masih terisolir
+                if self.partner_id.state == 'isolated':
+                    # Cek apakah semua CPE sudah open
+                    isolated_cpes = self.env['isp.cpe'].search([
+                        ('partner_id', '=', self.partner_id.id),
+                        ('state', '=', 'isolated')
+                    ])
+                    
+                    if not isolated_cpes:
+                        # Jika tidak ada CPE terisolir lain, aktifkan pelanggan
+                        self.partner_id.write({'state': 'active'})
+                
+                # Tampilkan notifikasi sukses
+                self.env['bus.bus']._sendone(
+                    self.env.user.partner_id,
+                    'simple_notification',
+                    {
+                        'title': 'Sukses',
+                        'message': 'Subscription berhasil dibuka isolirnya',
+                        'type': 'success',
+                    }
+                )
+                
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'reload',
+                }
+            except Exception as e:
+                _logger.error(f'Error saat membuka isolir subscription: {str(e)}')
+                raise ValidationError(f'Gagal membuka isolir subscription: {str(e)}')
+            finally:
+                if api:
+                    connection.disconnect()
+        except Exception as e:
+            _logger.error(f'Error saat koneksi ke Mikrotik: {str(e)}')
+            raise ValidationError(f'Gagal terhubung ke Mikrotik: {str(e)}')
 
     def action_view_invoices(self):
         """Tampilkan invoice subscription"""

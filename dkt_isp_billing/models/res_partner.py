@@ -89,6 +89,18 @@ class ResPartner(models.Model):
             'context': {'default_partner_id': self.id, 'default_move_type': 'out_invoice'}
         }
 
+    def action_view_cpe(self):
+        """Tampilkan CPE pelanggan"""
+        self.ensure_one()
+        return {
+            'name': 'CPE',
+            'type': 'ir.actions.act_window',
+            'res_model': 'isp.cpe',
+            'view_mode': 'tree,form',
+            'domain': [('partner_id', '=', self.id)],
+            'context': {'default_partner_id': self.id}
+        }
+
     def action_adopt_secret(self):
         """
         Mengadopsi secret/user yang sudah ada di Mikrotik
@@ -139,7 +151,8 @@ class ResPartner(models.Model):
             
         # Buat secret baru
         try:
-            mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+            # Gunakan konfigurasi Mikrotik dari CPE jika ada
+            mikrotik = cpe.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
             if not mikrotik:
                 return False, 'Konfigurasi Mikrotik tidak ditemukan'
                 
@@ -169,58 +182,105 @@ class ResPartner(models.Model):
         """Aktivasi pelanggan"""
         self.ensure_one()
         if self.state == 'draft':
-            return self.create_mikrotik_user(self.cpe_ids[0])
+            success, message = self.create_mikrotik_user(self.cpe_ids[0])
+            if success:
+                self.write({'state': 'active'})
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Sukses',
+                        'message': 'Pelanggan berhasil diaktifkan',
+                        'type': 'success',
+                    }
+                }
+            else:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Gagal',
+                        'message': message,
+                        'type': 'danger',
+                    }
+                }
 
     def action_isolate(self):
         self.ensure_one()
         if self.state == 'active':
-            mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-            if not mikrotik:
-                raise ValidationError('Konfigurasi Mikrotik tidak ditemukan')
-                
-            api = mikrotik.get_connection()
-            if not api:
-                raise ValidationError('Gagal terhubung ke Mikrotik')
-                
-            try:
-                # Isolir semua CPE aktif
-                for cpe in self.cpe_ids.filtered(lambda c: c.state == 'active'):
+            # Isolir semua CPE aktif
+            for cpe in self.cpe_ids.filtered(lambda c: c.state == 'open'):
+                # Gunakan konfigurasi Mikrotik dari CPE jika ada
+                mikrotik = cpe.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+                if not mikrotik:
+                    raise ValidationError('Konfigurasi Mikrotik tidak ditemukan')
+                    
+                api = mikrotik.get_connection()
+                if not api:
+                    raise ValidationError('Gagal terhubung ke Mikrotik')
+                    
+                try:
                     user_api = api.get_resource('/ppp/secret')
                     secrets = user_api.get(name=cpe.pppoe_username)
                     if secrets:
                         user_id = secrets[0].get('.id')
                         user_api.set(id=user_id, disabled='yes')
-                        cpe.state = 'isolated'
-                self.state = 'isolated'
-            except Exception as e:
-                raise ValidationError(f'Gagal isolir: {str(e)}')
-            finally:
-                if api and hasattr(api, 'connection_pool'):
-                    api.connection_pool.disconnect()
+                        cpe.write({'state': 'isolated'})
+                except Exception as e:
+                    raise ValidationError(f'Gagal isolir CPE {cpe.name}: {str(e)}')
+                finally:
+                    if api and hasattr(api, 'connection_pool'):
+                        api.connection_pool.disconnect()
+            
+            self.write({'state': 'isolated'})
+            
+            # Tampilkan notifikasi sukses
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sukses',
+                    'message': 'Pelanggan berhasil diisolir',
+                    'type': 'success',
+                }
+            }
 
     def action_enable(self):
         self.ensure_one()
         if self.state == 'isolated':
-            mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-            if not mikrotik:
-                raise ValidationError('Konfigurasi Mikrotik tidak ditemukan')
-                
-            api = mikrotik.get_connection()
-            if not api:
-                raise ValidationError('Gagal terhubung ke Mikrotik')
-                
-            try:
-                # Aktifkan semua CPE yang terisolir
-                for cpe in self.cpe_ids.filtered(lambda c: c.state == 'isolated'):
+            # Aktifkan semua CPE yang terisolir
+            for cpe in self.cpe_ids.filtered(lambda c: c.state == 'isolated'):
+                # Gunakan konfigurasi Mikrotik dari CPE jika ada
+                mikrotik = cpe.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+                if not mikrotik:
+                    raise ValidationError('Konfigurasi Mikrotik tidak ditemukan')
+                    
+                api = mikrotik.get_connection()
+                if not api:
+                    raise ValidationError('Gagal terhubung ke Mikrotik')
+                    
+                try:
                     user_api = api.get_resource('/ppp/secret')
                     secrets = user_api.get(name=cpe.pppoe_username)
                     if secrets:
                         user_id = secrets[0].get('.id')
                         user_api.set(id=user_id, disabled='no')
-                        cpe.state = 'active'
-                self.state = 'active'
-            except Exception as e:
-                raise ValidationError(f'Gagal buka isolir: {str(e)}')
-            finally:
-                if api and hasattr(api, 'connection_pool'):
-                    api.connection_pool.disconnect() 
+                        cpe.write({'state': 'open'})
+                except Exception as e:
+                    raise ValidationError(f'Gagal buka isolir CPE {cpe.name}: {str(e)}')
+                finally:
+                    if api and hasattr(api, 'connection_pool'):
+                        api.connection_pool.disconnect()
+            
+            self.write({'state': 'active'})
+            
+            # Tampilkan notifikasi sukses
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Sukses',
+                    'message': 'Pelanggan berhasil dibuka isolirnya',
+                    'type': 'success',
+                }
+            } 

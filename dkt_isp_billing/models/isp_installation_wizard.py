@@ -43,6 +43,9 @@ class ISPInstallationWizard(models.TransientModel):
     ip_address = fields.Char('IP Address')
     outdoor_unit = fields.Char('Outdoor Unit')
     router = fields.Char('Router')
+    mikrotik_config_id = fields.Many2one('isp.mikrotik.config', string='Router Mikrotik', 
+                                        domain="[('active', '=', True)]",
+                                        help="Router Mikrotik tempat user PPPoE dibuat")
     connection_type = fields.Selection([
         ('pppoe', 'PPPoE'),
         ('static', 'Static IP'),
@@ -71,7 +74,9 @@ class ISPInstallationWizard(models.TransientModel):
     installation_type_id = fields.Many2one('isp.installation.type', string='Tipe Instalasi')
     installation_date = fields.Date('Tanggal Instalasi', default=fields.Date.today)
     installation_amount = fields.Float('Biaya Instalasi')
-    technician_id = fields.Many2one('res.users', string='Teknisi')
+    technician_id = fields.Many2one('res.users', string='Teknisi',
+                                 domain=lambda self: [('groups_id', 'in', [self.env.ref('dkt_isp_billing.group_isp_technician').id])],
+                                 help="Teknisi yang akan melakukan instalasi")
     installation_notes = fields.Text('Catatan Instalasi')
     
     # Summary
@@ -82,6 +87,15 @@ class ISPInstallationWizard(models.TransientModel):
     def default_get(self, fields_list):
         """Override default_get untuk mengisi nilai default pada field-field wajib"""
         res = super(ISPInstallationWizard, self).default_get(fields_list)
+        
+        # Jika wizard dipanggil dari form pelanggan
+        if self.env.context.get('active_model') == 'res.partner' and self.env.context.get('active_id'):
+            partner = self.env['res.partner'].browse(self.env.context.get('active_id'))
+            if partner.exists() and partner.customer_rank > 0:
+                res.update({
+                    'is_new_customer': False,
+                    'partner_id': partner.id,
+                })
         
         # Set default package_id jika ada
         if 'package_id' in fields_list and not res.get('package_id'):
@@ -96,11 +110,35 @@ class ISPInstallationWizard(models.TransientModel):
                 res['installation_type_id'] = default_installation_type.id
                 res['installation_amount'] = default_installation_type.price
         
+        # Set default mikrotik_config_id jika ada
+        if 'mikrotik_config_id' in fields_list and not res.get('mikrotik_config_id'):
+            default_mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+            if default_mikrotik:
+                res['mikrotik_config_id'] = default_mikrotik.id
+        
         return res
     
     @api.onchange('is_new_customer')
     def _onchange_is_new_customer(self):
         if not self.is_new_customer:
+            # Jangan hapus data jika ada partner_id yang dipilih
+            if not self.partner_id:
+                self.name = False
+                self.street = False
+                self.street2 = False
+                self.city = False
+                self.state_id = False
+                self.zip = False
+                self.email = False
+                self.phone = False
+                self.mobile = False
+                self.identity_number = False
+                self.emergency_contact = False
+                self.emergency_phone = False
+                self.notes = False
+        else:
+            # Reset partner_id dan data terkait
+            self.partner_id = False
             self.name = False
             self.street = False
             self.street2 = False
@@ -114,12 +152,26 @@ class ISPInstallationWizard(models.TransientModel):
             self.emergency_contact = False
             self.emergency_phone = False
             self.notes = False
-        else:
-            self.partner_id = False
     
     @api.onchange('partner_id')
     def _onchange_partner_id(self):
         if self.partner_id:
+            # Isi data pelanggan dari partner yang dipilih
+            self.name = self.partner_id.name
+            self.street = self.partner_id.street
+            self.street2 = self.partner_id.street2
+            self.city = self.partner_id.city
+            self.state_id = self.partner_id.state_id
+            self.zip = self.partner_id.zip
+            self.country_id = self.partner_id.country_id
+            self.email = self.partner_id.email
+            self.phone = self.partner_id.phone
+            self.mobile = self.partner_id.mobile
+            self.identity_number = self.partner_id.identity_number
+            self.emergency_contact = self.partner_id.emergency_contact
+            self.emergency_phone = self.partner_id.emergency_phone
+            self.notes = self.partner_id.comment
+            
             # Isi data CPE dengan nama pelanggan
             if not self.cpe_name:
                 self.cpe_name = f"CPE-{self.partner_id.name}"
@@ -171,12 +223,32 @@ class ISPInstallationWizard(models.TransientModel):
             default_package = self.env['isp.package'].search([], limit=1)
             if default_package:
                 self.package_id = default_package.id
+        else:
+            # Jika paket dipilih dan memiliki profil dengan konfigurasi Mikrotik,
+            # update mikrotik_config_id sesuai dengan profil paket
+            if self.package_id.profile_id and self.package_id.profile_id.mikrotik_config_id:
+                self.mikrotik_config_id = self.package_id.profile_id.mikrotik_config_id
     
     @api.model
     def _generate_random_password(self, length=8):
         """Generate random password with specified length."""
         characters = string.ascii_letters + string.digits
         return ''.join(random.choice(characters) for i in range(length))
+    
+    @api.constrains('pppoe_username')
+    def _check_pppoe_username(self):
+        """Validasi username PPPoE unik"""
+        for record in self:
+            if record.pppoe_username:
+                if self.env['isp.cpe'].search_count([('pppoe_username', '=', record.pppoe_username)]) > 0:
+                    raise ValidationError(f'Username PPPoE "{record.pppoe_username}" sudah digunakan!')
+    
+    @api.constrains('due_day')
+    def _check_due_day(self):
+        """Validasi tanggal jatuh tempo"""
+        for record in self:
+            if record.due_day < 1 or record.due_day > 31:
+                raise ValidationError('Tanggal jatuh tempo harus berada di antara 1-31!')
     
     def action_next(self):
         """Pindah ke tahap berikutnya"""
@@ -202,6 +274,8 @@ class ISPInstallationWizard(models.TransientModel):
                     raise ValidationError('PPPoE Username harus diisi!')
                 if not self.pppoe_password:
                     raise ValidationError('PPPoE Password harus diisi!')
+                if not self.mikrotik_config_id:
+                    raise ValidationError('Router Mikrotik harus dipilih untuk koneksi tipe PPPoE!')
             self.state = 'subscription'
             
         elif self.state == 'subscription':
@@ -287,6 +361,11 @@ class ISPInstallationWizard(models.TransientModel):
             'ownership': self.ownership,
             'state': 'draft',
         }
+        
+        # Tambahkan mikrotik_config_id jika connection_type == 'pppoe'
+        if self.connection_type == 'pppoe' and self.mikrotik_config_id:
+            cpe_vals['mikrotik_config_id'] = self.mikrotik_config_id.id
+            
         cpe = self.env['isp.cpe'].create(cpe_vals)
         
         # 3. Buat data subscription

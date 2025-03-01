@@ -62,14 +62,20 @@ class ISPInstallationFee(models.Model):
         if not sale_journal:
             raise ValidationError('Tidak ditemukan jurnal penjualan. Silakan buat jurnal penjualan terlebih dahulu.')
         
-        # Cari akun pendapatan
-        revenue_account = self.env.ref('dkt_isp_billing.revenue_account', raise_if_not_found=False)
-        if not revenue_account:
-            revenue_account = self.env['account.account'].search([
+        # Cari akun pendapatan pasang baru
+        installation_revenue_account = self.env.ref('dkt_isp_billing.installation_revenue_account', raise_if_not_found=False)
+        if not installation_revenue_account:
+            installation_revenue_account = self.env['account.account'].search([
+                ('code', '=', '4002'),  # Pendapatan Pasang Baru
+            ], limit=1)
+            
+        if not installation_revenue_account:
+            # Fallback ke akun pendapatan umum
+            installation_revenue_account = self.env['account.account'].search([
                 ('account_type', '=', 'income')
             ], limit=1)
             
-        if not revenue_account:
+        if not installation_revenue_account:
             raise ValidationError('Tidak ditemukan akun pendapatan. Silakan buat akun pendapatan terlebih dahulu.')
             
         invoice_vals = {
@@ -81,7 +87,7 @@ class ISPInstallationFee(models.Model):
                 'name': f'Biaya Instalasi - {self.installation_type_id.name}',
                 'quantity': 1,
                 'price_unit': self.amount,
-                'account_id': revenue_account.id,
+                'account_id': installation_revenue_account.id,
             })],
         }
         

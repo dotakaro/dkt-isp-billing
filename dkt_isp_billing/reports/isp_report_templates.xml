@@ -373,9 +373,19 @@
                     </div>
                 </div>
                 
-                <!-- Catatan kaki -->
-                <div t-if="total_subscription == 0 and total_installation == 0" class="alert alert-info" style="text-align: center; padding: 10px; margin-top: 30px;">
-                    <small>Catatan: Data yang ditampilkan adalah data dummy untuk keperluan testing.</small>
+                <!-- Total Keseluruhan -->
+                <div class="row" style="margin-bottom: 30px;">
+                    <div class="col-8"></div>
+                    <div class="col-4">
+                        <table class="table table-sm table-bordered bg-dark text-white">
+                            <tr>
+                                <td style="width: 70%;"><strong>TOTAL PIUTANG:</strong></td>
+                                <td style="width: 30%;" class="text-right">
+                                    <strong><span t-esc="total_subscription_receivable + total_installation_receivable" t-options="{'widget': 'monetary', 'display_currency': company.currency_id}"/></strong>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
             </div>
         </t>
@@ -486,13 +496,6 @@
                             </tr>
                         </table>
                     </div>
-                </div>
-
-                <!-- Footer note jika data kosong -->
-                <div t-if="total_revenue == 0 and total_cost == 0" class="mt-4">
-                    <small class="text-muted">
-                        <i>Catatan: Tidak ada data transaksi dalam periode yang dipilih. Data yang ditampilkan adalah data dummy untuk testing.</i>
-                    </small>
                 </div>
             </div>
         </t>

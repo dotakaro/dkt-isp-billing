@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_wa_registration_list" model="ir.ui.view">
+        <field name="name">isp.wa.registration.list</field>
+        <field name="model">isp.wa.registration</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="source"/>
+                <field name="channel"/>
+                <field name="registered_by"/>
+                <field name="customer_name"/>
+                <field name="customer_phone"/>
+                <field name="area_id"/>
+                <field name="mikrotik_config_id" optional="hide"/>
+                <field name="package_id"/>
+                <field name="pppoe_username"/>
+                <field name="technician_id" optional="hide"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_isp_wa_registration_form" model="ir.ui.view">
+        <field name="name">isp.wa.registration.form</field>
+        <field name="model">isp.wa.registration</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Setujui &amp; buat user"
+                            class="btn-primary" invisible="state != 'queued'"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
+                    <button name="action_reject" type="object" string="Tolak"
+                            invisible="state not in ('queued', 'chatting')"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
+                    <button name="action_waive_evidence" type="object" string="Bebaskan eviden"
+                            invisible="not cpe_id"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" readonly="1"/>
+                            <field name="source"/>
+                            <field name="channel"/>
+                            <field name="step"/>
+                            <field name="actor_phone"/>
+                            <field name="actor_name"/>
+                            <field name="registered_by"/>
+                            <field name="group_id"/>
+                            <field name="technician_id"/>
+                        </group>
+                        <group>
+                            <field name="customer_name"/>
+                            <field name="customer_phone"/>
+                            <field name="area_id"/>
+                            <field name="mikrotik_config_id"/>
+                            <field name="package_id"/>
+                            <field name="pppoe_username"/>
+                            <field name="activate_error"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="partner_id"/>
+                        <field name="cpe_id"/>
+                        <field name="subscription_id"/>
+                        <field name="note"/>
+                    </group>
+                    <group string="Jejak audit">
+                        <field name="audit_log" nolabel="1" readonly="1" colspan="2"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_isp_wa_registration_search" model="ir.ui.view">
+        <field name="name">isp.wa.registration.search</field>
+        <field name="model">isp.wa.registration</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="customer_name"/>
+                <field name="customer_phone"/>
+                <field name="pppoe_username"/>
+                <field name="registered_by"/>
+                <field name="actor_phone"/>
+                <field name="actor_name"/>
+                <filter string="Antrian" name="queued" domain="[('state', '=', 'queued')]"/>
+                <filter string="Sesi bot" name="chatting" domain="[('state', '=', 'chatting')]"/>
+                <filter string="User dibuat" name="created" domain="[('state', '=', 'created')]"/>
+                <group>
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Sumber" name="group_source" context="{'group_by': 'source'}"/>
+                    <filter string="Didaftarkan oleh" name="group_registered_by" context="{'group_by': 'registered_by'}"/>
+                    <filter string="Teknisi" name="group_technician" context="{'group_by': 'technician_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_isp_wa_registration" model="ir.actions.act_window">
+        <field name="name">Antrian pendaftaran WA</field>
+        <field name="res_model">isp.wa.registration</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_queued': 1}</field>
+    </record>
+</odoo>

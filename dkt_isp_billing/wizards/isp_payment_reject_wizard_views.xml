@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_payment_reject_wizard_form" model="ir.ui.view">
+        <field name="name">isp.payment.reject.wizard.form</field>
+        <field name="model">isp.payment.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Tolak bukti">
+                <group>
+                    <field name="proof_ids" widget="many2many_tags" readonly="1"/>
+                    <field name="reason" placeholder="Contoh: rekening tujuan salah / nominal beda / bukti tidak jelas"/>
+                </group>
+                <footer>
+                    <button name="action_reject" type="object" string="Tolak" class="btn-danger"/>
+                    <button string="Batal" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

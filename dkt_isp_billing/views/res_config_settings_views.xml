@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.dkt.isp.billing</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="ISP Billing" string="ISP Billing" name="dkt_isp_billing">
+                    <block title="WhatsApp" name="isp_whatsapp_settings">
+                        <setting id="isp_wa_provider" string="Provider" help="Fonnte.id (teks bebas, api.fonnte.com/send) atau Meta Cloud API. Token hanya di Settings, tidak di XML/git.">
+                            <field name="isp_wa_provider"/>
+                        </setting>
+                        <setting id="isp_wa_dry_run" string="Dry-run" help="Jika aktif, tombol kirim hanya menulis log. Disarankan tetap aktif sampai tes selesai.">
+                            <field name="isp_wa_dry_run"/>
+                        </setting>
+                        <setting id="isp_wa_fonnte" string="Token Fonnte" help="Token perangkat dari dashboard Fonnte.id. Kosongkan jika tidak mengganti. Token tidak ditampilkan ulang.">
+                            <field name="isp_wa_fonnte_token_set" invisible="1"/>
+                            <div invisible="not isp_wa_fonnte_token_set">Token Fonnte sudah tersimpan.</div>
+                            <field name="isp_wa_fonnte_token" password="True" placeholder="Isi untuk mengganti token"/>
+                        </setting>
+                        <setting id="isp_wa_meta" string="Meta Cloud API" help="Production Meta wajib template Approved. Token dan Phone Number ID dari Meta for Developers. Token tidak ditampilkan ulang.">
+                            <field name="isp_wa_meta_token_set" invisible="1"/>
+                            <div invisible="not isp_wa_meta_token_set">Token Meta sudah tersimpan.</div>
+                            <field name="isp_wa_meta_token" password="True" placeholder="Isi untuk mengganti token"/>
+                            <field name="isp_wa_meta_phone_number_id" placeholder="Phone Number ID"/>
+                            <field name="isp_wa_meta_api_version"/>
+                            <field name="isp_wa_meta_template_lang" placeholder="id"/>
+                            <field name="isp_wa_meta_template_invoice" placeholder="contoh: isp_tagihan"/>
+                            <field name="isp_wa_meta_template_due" placeholder="contoh: isp_jatuh_tempo"/>
+                            <field name="isp_wa_meta_template_late" placeholder="contoh: isp_telat"/>
+                            <field name="isp_wa_meta_note" nolabel="1"/>
+                        </setting>
+                        <setting id="isp_wa_delay" string="Jeda antar pesan" help="Rate-limit wajar antar nomor. Bukan rate-limit paket MikroTik.">
+                            <field name="isp_wa_rate_delay"/>
+                        </setting>
+                    </block>
+                    <block title="RADIUS" name="isp_radius_settings">
+                        <setting id="isp_radius_enabled"
+                                 string="Sinkron FreeRADIUS"
+                                 help="Stack terpisah. Isolir otomatis tetap OFF. Isolir RADIUS = profile isolir + halaman /isp/isolir.">
+                            <field name="isp_radius_enabled"/>
+                            <field name="isp_radius_note" nolabel="1"/>
+                        </setting>
+                        <setting id="isp_radius_db" string="Database RADIUS" help="DB terpisah bernama radius di Postgres yang sama. Password tidak ditampilkan ulang.">
+                            <field name="isp_radius_db_host"/>
+                            <field name="isp_radius_db_name"/>
+                            <field name="isp_radius_db_user"/>
+                            <field name="isp_radius_db_password" password="True" placeholder="Isi untuk mengganti password"/>
+                            <field name="isp_radius_landing_url" placeholder="https://billing.dotakaro.com/isp/isolir"/>
+                        </setting>
+                    </block>
+                    <block title="Isolir otomatis" name="isp_auto_isolate_settings">
+                        <setting id="isp_auto_isolate_enabled"
+                                 string="Aktifkan isolir otomatis (Radius + fintech)"
+                                 help="Default mati. Jangan nyalakan sebelum RADIUS dan pembayaran fintech siap. Saat ini isolir = disable secret di router CPE, hanya Isolir massal.">
+                            <field name="isp_auto_isolate_enabled"/>
+                            <field name="isp_auto_isolate_note" nolabel="1"/>
+                        </setting>
+                        <setting id="isp_auto_isolate_backend"
+                                 string="Backend (masa depan)"
+                                 help="Cron isolir otomatis no-op kecuali flag ON dan backend RADIUS. Secret MikroTik tidak diisolir otomatis.">
+                            <field name="isp_auto_isolate_backend"/>
+                            <field name="isp_auto_isolate_trigger"/>
+                        </setting>
+                    </block>
+                    <block title="Pembayaran" name="isp_payment_settings">
+                        <setting id="isp_cash_journal" string="Jurnal Kas" help="Default tombol Bayar tunai / Kas.">
+                            <field name="isp_cash_journal_id"/>
+                        </setting>
+                        <setting id="isp_transfer_journal" string="Jurnal Transfer" help="Default pembayaran dari bukti transfer.">
+                            <field name="isp_transfer_journal_id"/>
+                        </setting>
+                        <setting id="isp_dest_account" string="Rekening tujuan perusahaan" help="Dipakai memvalidasi struk. Jika rekening/nama penerima beda, bukti masuk Perlu review dan tidak boleh dibayar.">
+                            <field name="isp_dest_bank_name" placeholder="BANK BRI"/>
+                            <field name="isp_dest_account_number" placeholder="014401000343565"/>
+                            <field name="isp_dest_account_name" placeholder="WASPADA SINULINGGA"/>
+                        </setting>
+                        <setting id="isp_ocr_confirm" string="Auto-post OCR" help="Selalu mati. Desa/pelanggan hanya mengajukan. Admin pusat yang verifikasi screenshot, rekening tujuan, nominal, dan no.ref.">
+                            <field name="isp_ocr_auto_post_enabled"/>
+                            <field name="isp_ocr_auto_post_threshold"/>
+                        </setting>
+                        <setting id="isp_wa_register"
+                                 string="Bot pendaftaran / grup aktivasi"
+                                 help="Default mati. Isi ID grup dari Fonnte (xxx@g.us). Semua anggota grup itu boleh pakai bot.">
+                            <field name="isp_wa_register_enabled"/>
+                            <field name="isp_wa_register_mode"/>
+                            <field name="isp_wa_register_group_id" placeholder="ID grup Aktivasi-dkt"/>
+                            <field name="isp_wa_billing_group_id" placeholder="ID grup Billing-dkt"/>
+                            <field name="isp_wa_evidence_required"/>
+                            <field name="isp_wa_evidence_hours"/>
+                            <field name="isp_wa_register_note" nolabel="1"/>
+                        </setting>
+                        <setting id="isp_wa_inbound" string="Unggah bukti via WhatsApp" help="Nomor device dipakai campur. Hanya foto ber-caption BAYAR username/HP yang masuk antrian.">
+                            <field name="isp_wa_inbound_enabled"/>
+                            <field name="isp_wa_public_base_url" placeholder="https://billing.contoh.co.id"/>
+                            <field name="isp_wa_webhook_url" readonly="1"/>
+                            <field name="isp_wa_webhook_is_public" invisible="1"/>
+                            <field name="isp_wa_inbound_note" nolabel="1"/>
+                            <button name="action_test_fonnte_send" type="object"
+                                    string="Kirim tes WA (nomor tes saja)"
+                                    class="btn-secondary"
+                                    confirm="Kirim 1 pesan tes ke nomor tes saja. Lanjutkan?"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_isp_config_settings" model="ir.actions.act_window">
+        <field name="name">Pengaturan ISP</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'module': 'dkt_isp_billing'}</field>
+    </record>
+</odoo>

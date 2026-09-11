@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_cpe_pppoe_history_list" model="ir.ui.view">
+        <field name="name">isp.cpe.pppoe.history.list</field>
+        <field name="model">isp.cpe.pppoe.history</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="timestamp"/>
+                <field name="cpe_id"/>
+                <field name="partner_id"/>
+                <field name="event_type"/>
+                <field name="old_status"/>
+                <field name="new_status"/>
+                <field name="session_count"/>
+                <field name="uptime"/>
+                <field name="caller_id"/>
+                <field name="ip_address"/>
+                <field name="router_id"/>
+                <field name="source"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_isp_cpe_pppoe_history_form" model="ir.ui.view">
+        <field name="name">isp.cpe.pppoe.history.form</field>
+        <field name="model">isp.cpe.pppoe.history</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="timestamp"/>
+                            <field name="cpe_id"/>
+                            <field name="partner_id"/>
+                            <field name="router_id"/>
+                        </group>
+                        <group>
+                            <field name="event_type"/>
+                            <field name="old_status"/>
+                            <field name="new_status"/>
+                            <field name="session_count"/>
+                            <field name="uptime"/>
+                            <field name="caller_id"/>
+                            <field name="ip_address"/>
+                            <field name="source"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_isp_cpe_pppoe_history_search" model="ir.ui.view">
+        <field name="name">isp.cpe.pppoe.history.search</field>
+        <field name="model">isp.cpe.pppoe.history</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="cpe_id"/>
+                <field name="partner_id"/>
+                <field name="router_id"/>
+                <filter string="Terhubung" name="to_connected" domain="[('new_status', '=', 'connected')]"/>
+                <filter string="Terputus" name="to_disconnected" domain="[('new_status', '=', 'disconnected')]"/>
+                <filter string="Masuk multi-sesi" name="multi_enter" domain="[('event_type', '=', 'multisession_enter')]"/>
+                <filter string="Keluar multi-sesi" name="multi_leave" domain="[('event_type', '=', 'multisession_leave')]"/>
+                <group>
+                    <filter string="CPE" name="group_cpe" context="{'group_by': 'cpe_id'}"/>
+                    <filter string="Router" name="group_router" context="{'group_by': 'router_id'}"/>
+                    <filter string="Status baru" name="group_new_status" context="{'group_by': 'new_status'}"/>
+                    <filter string="Jenis event" name="group_event_type" context="{'group_by': 'event_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_isp_cpe_pppoe_history" model="ir.actions.act_window">
+        <field name="name">Riwayat PPPoE</field>
+        <field name="res_model">isp.cpe.pppoe.history</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_cpe_pppoe_history_search"/>
+        <field name="context">{'search_default_to_disconnected': 0}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada perubahan status PPPoE
+            </p>
+        </field>
+    </record>
+</odoo>

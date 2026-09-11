@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dkt_isp_billing.IspInvoiceDashboard">
+        <div class="o_isp_dashboard o_action h-100 overflow-auto">
+            <div class="o_isp_dash_header">
+                <div>
+                    <h1 class="o_isp_dash_title">Dashboard tagihan</h1>
+                    <p class="o_isp_dash_sub">
+                        Kelola siklus tagihan bulan
+                        <strong t-esc="state.data.period_label or 'berjalan'"/>:
+                        draft, nunggak, telat, isolir, dan antrian bukti.
+                    </p>
+                </div>
+                <div class="o_isp_dash_actions">
+                    <button type="button" class="btn btn-secondary"
+                            t-on-click="() => this.loadData()"
+                            t-att-disabled="state.loading">
+                        Muat ulang
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            t-on-click="() => this.openKpi('billing_run')">
+                        Proses tagihan
+                    </button>
+                </div>
+            </div>
+
+            <t t-if="state.loading and !state.data.kpis.outstanding_count and !state.data.kpis.draft_count">
+                <div class="o_isp_empty">Memuat antrian tagihan…</div>
+            </t>
+            <t t-elif="state.error and !state.data.period_label">
+                <div class="alert alert-danger" t-esc="state.error"/>
+            </t>
+
+            <section class="o_isp_section">
+                <h2>Alur kerja</h2>
+                <p class="o_isp_hint">Urutan operasi bulan berjalan. Isolir tidak otomatis. Verifikasi bukti hanya admin pusat.</p>
+                <div class="o_isp_flow">
+                    <button type="button" class="o_isp_flow_btn"
+                            t-on-click="() => this.openKpi('billing_run')">
+                        <strong>1. Proses tagihan</strong>
+                        <span>Petakan paket &amp; buat draft bulan ini</span>
+                    </button>
+                    <button type="button" class="o_isp_flow_btn"
+                            t-on-click="() => this.openKpi('invoice_draft_month')">
+                        <strong>2. Cek draft</strong>
+                        <span>Review lalu post manual — tidak massal otomatis</span>
+                    </button>
+                    <button type="button" class="o_isp_flow_btn"
+                            t-on-click="() => this.openKpi('invoice_outstanding')">
+                        <strong>3. Belum lunas</strong>
+                        <span>Tagihan posted yang masih nunggak / cicilan</span>
+                    </button>
+                    <button type="button" class="o_isp_flow_btn"
+                            t-on-click="() => this.openKpi('proof_queue')">
+                        <strong>4. Verifikasi bukti</strong>
+                        <span>Antrian WA / kas / transfer, belum lunas otomatis</span>
+                    </button>
+                    <button type="button" class="o_isp_flow_btn"
+                            t-on-click="() => this.openKpi('subscription_overdue')">
+                        <strong>5. Telat (tgl 21)</strong>
+                        <span>Langganan nunggak, kecuali perlakuan khusus</span>
+                    </button>
+                    <button type="button" class="o_isp_flow_btn"
+                            t-on-click="() => this.openKpi('isolate_bulk')">
+                        <strong>6. Isolir massal</strong>
+                        <span>Manual per desa / CPE, bukan cron otomatis</span>
+                    </button>
+                    <button type="button" class="o_isp_flow_btn"
+                            t-on-click="() => this.openKpi('wa_prepare')">
+                        <strong>7. Pemberitahuan WA</strong>
+                        <span>Seleksi / tag, bukan blast semua pelanggan</span>
+                    </button>
+                    <button type="button" class="o_isp_flow_btn"
+                            t-on-click="() => this.openKpi('unisolate_failed')">
+                        <strong>8. Gagal buka isolir</strong>
+                        <span>Lunas sudah tercatat, koneksi belum pulih</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="o_isp_section">
+                <h2>Antrian sekarang</h2>
+                <p class="o_isp_hint">Klik kartu untuk daftar terfilter.</p>
+                <div class="o_isp_kpi_grid o_isp_kpi_grid_wide">
+                    <button type="button" class="o_isp_kpi"
+                            t-on-click="() => this.openKpi('invoice_draft_month')">
+                        <span class="o_isp_kpi_label">Draft bulan ini</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.draft_count"/>
+                        <span class="o_isp_kpi_money" t-esc="state.data.kpis.draft_amount_display"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                            t-on-click="() => this.openKpi('invoice_outstanding')">
+                        <span class="o_isp_kpi_label">Belum lunas</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.outstanding_count"/>
+                        <span class="o_isp_kpi_money" t-esc="state.data.kpis.outstanding_amount_display"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                            t-on-click="() => this.openKpi('invoice_partial')">
+                        <span class="o_isp_kpi_label">Cicilan / kurang bayar</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.partial_count"/>
+                        <span class="o_isp_kpi_money" t-esc="state.data.kpis.partial_amount_display"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi o_isp_kpi_danger"
+                            t-on-click="() => this.openKpi('subscription_overdue')">
+                        <span class="o_isp_kpi_label">Telat (tgl 21)</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.late_count"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                            t-on-click="() => this.openKpi('subscription_isolated')">
+                        <span class="o_isp_kpi_label">Terisolir</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.isolated_count"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi"
+                            t-on-click="() => this.openKpi('subscription_review')">
+                        <span class="o_isp_kpi_label">Perlakuan khusus</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.special_count"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi o_isp_kpi_ok"
+                            t-on-click="() => this.openKpi('proof_queue')">
+                        <span class="o_isp_kpi_label">Antrian bukti</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.proof_queue_count"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                            t-on-click="() => this.openKpi('proof_review')">
+                        <span class="o_isp_kpi_label">Bukti perlu review</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.proof_review_count"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                            t-on-click="() => this.openKpi('proof_underpayment')">
+                        <span class="o_isp_kpi_label">Pembayaran kurang</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.proof_under_count"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi o_isp_kpi_danger"
+                            t-on-click="() => this.openKpi('unisolate_failed')">
+                        <span class="o_isp_kpi_label">Gagal buka isolir</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.unisolate_failed_count"/>
+                    </button>
+                    <button type="button" class="o_isp_kpi"
+                            t-on-click="() => this.openKpi('wa_queue')">
+                        <span class="o_isp_kpi_label">Antrian WA</span>
+                        <span class="o_isp_kpi_value" t-esc="state.data.kpis.wa_queue_count"/>
+                    </button>
+                </div>
+                <div class="o_isp_attention"
+                     t-if="state.data.kpis.proof_queue_count or state.data.kpis.unisolate_failed_count or state.data.kpis.late_count">
+                    <span>Perlu tindakan:</span>
+                    <button type="button" class="btn btn-link btn-sm"
+                            t-on-click="() => this.openKpi('proof_queue')">
+                        <t t-esc="state.data.kpis.proof_queue_count"/> bukti
+                    </button>
+                    <button type="button" class="btn btn-link btn-sm"
+                            t-on-click="() => this.openKpi('subscription_overdue')">
+                        <t t-esc="state.data.kpis.late_count"/> telat
+                    </button>
+                    <button type="button" class="btn btn-link btn-sm"
+                            t-on-click="() => this.openKpi('unisolate_failed')">
+                        <t t-esc="state.data.kpis.unisolate_failed_count"/> gagal buka isolir
+                    </button>
+                </div>
+            </section>
+
+            <section class="o_isp_section">
+                <h2>Per desa</h2>
+                <p class="o_isp_hint">Isolir dan penagihan biasanya per desa. Klik angka untuk filter area itu.</p>
+                <div class="table-responsive">
+                    <table class="o_isp_table">
+                        <thead>
+                            <tr>
+                                <th>Desa / area</th>
+                                <th class="text-end">Belum lunas</th>
+                                <th class="text-end">Nominal</th>
+                                <th class="text-end">Telat</th>
+                                <th class="text-end">Isolir</th>
+                                <th class="text-end">Antrian bukti</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="state.data.areas" t-as="area" t-key="area.area_id + '-' + area.name">
+                                <tr t-att-class="area.late_count or area.isolated_count ? 'o_isp_row_stale' : ''">
+                                    <td t-esc="area.name"/>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-link p-0"
+                                                t-on-click="() => this.openKpi('area_outstanding', areaExtra(area))"
+                                                t-esc="area.outstanding_count"/>
+                                    </td>
+                                    <td class="text-end" t-esc="area.outstanding_amount_display"/>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-link p-0"
+                                                t-on-click="() => this.openKpi('area_late', areaExtra(area))"
+                                                t-esc="area.late_count"/>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-link p-0"
+                                                t-on-click="() => this.openKpi('area_isolated', areaExtra(area))"
+                                                t-esc="area.isolated_count"/>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-link p-0"
+                                                t-on-click="() => this.openKpi('area_proofs', areaExtra(area))"
+                                                t-esc="area.proof_count"/>
+                                    </td>
+                                </tr>
+                            </t>
+                            <tr t-if="!state.data.areas.length">
+                                <td colspan="6" class="o_isp_muted">Belum ada nunggak, telat, isolir, atau antrian bukti per desa.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <p class="o_isp_foot" t-esc="state.data.note"/>
+            <p class="o_isp_foot" t-if="state.data.generated_at_display">
+                Dimuat <t t-esc="state.data.generated_at_display"/>
+            </p>
+        </div>
+    </t>
+</templates>

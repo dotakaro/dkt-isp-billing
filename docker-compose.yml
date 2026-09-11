@@ -1,0 +1,47 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: dkt-isp-db
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: postgres
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/init-extensions.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro
+    ports:
+      - "5438:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+
+  odoo:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: dkt-isp-odoo:19
+    container_name: dkt-isp-odoo
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8196:8069"
+      - "8197:8072"
+    volumes:
+      - ./docker/odoo.conf:/etc/odoo/odoo.conf:ro
+      - ./dkt_isp_billing:/mnt/extra-addons/dkt/dkt_isp_billing
+      - ../odoo19/enterprise:/mnt/extra-addons/enterprise:ro
+      - odoo_data:/var/lib/odoo
+    environment:
+      HOST: db
+      PORT: 5432
+      USER: odoo
+      PASSWORD: odoo
+      MIKROTIK_API_PASSWORD: ${MIKROTIK_API_PASSWORD:-}
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  odoo_data:

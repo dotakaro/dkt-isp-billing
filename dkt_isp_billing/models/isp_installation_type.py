@@ -10,6 +10,7 @@ class ISPInstallationType(models.Model):
     description = fields.Text('Deskripsi')
     active = fields.Boolean('Active', default=True)
     
-    _sql_constraints = [
-        ('unique_code', 'unique(code)', 'Kode jenis instalasi harus unik!')
-    ] 
+    _unique_code = models.Constraint(
+        'UNIQUE(code)',
+        'Kode jenis instalasi harus unik!',
+    ) 

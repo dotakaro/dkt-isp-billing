@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dkt_isp_billing.IspDashboard">
+        <div class="o_isp_dashboard o_action h-100 overflow-auto">
+            <div class="o_isp_dash_header">
+                <div>
+                    <h1 class="o_isp_dash_title">Dashboard operasional</h1>
+                    <p class="o_isp_dash_sub">
+                        Pantau koneksi, pelanggan, tagihan, dan health router area.
+                        <t t-if="state.data.last_pppoe_refresh_display">
+                            Status CPE terakhir: <strong t-esc="state.data.last_pppoe_refresh_display"/>
+                        </t>
+                        <t t-if="state.data.pppoe_stale">
+                            <span class="text-warning"> — data CPE mungkin usang (cron refresh).</span>
+                        </t>
+                    </p>
+                </div>
+                <div class="o_isp_dash_actions">
+                    <button type="button" class="btn btn-secondary"
+                            t-on-click="() => this.loadData()"
+                            t-att-disabled="state.loading or state.checking">
+                        Muat ulang
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            t-on-click="() => this.refreshHealth()"
+                            t-att-disabled="state.loading or state.checking">
+                        <t t-if="state.checking">Mengecek router…</t>
+                        <t t-else="">Cek ulang router</t>
+                    </button>
+                </div>
+            </div>
+
+            <div class="o_isp_tabs">
+                <button type="button" t-att-class="state.tab === 'ringkasan' ? 'active' : ''"
+                        t-on-click="() => this.setTab('ringkasan')">Ringkasan</button>
+                <button type="button" t-att-class="state.tab === 'router' ? 'active' : ''"
+                        t-on-click="() => this.setTab('router')">Router</button>
+                <button type="button" t-att-class="state.tab === 'aktivitas' ? 'active' : ''"
+                        t-on-click="() => this.setTab('aktivitas')">Aktivitas</button>
+            </div>
+
+            <t t-if="state.loading and !state.data.network.total">
+                <div class="o_isp_empty">Memuat angka operasional…</div>
+            </t>
+            <t t-elif="state.error and !state.data.network.total">
+                <div class="alert alert-danger" t-esc="state.error"/>
+            </t>
+
+            <t t-if="state.tab === 'ringkasan'">
+                <section class="o_isp_section">
+                    <h2>Kondisi jaringan</h2>
+                    <p class="o_isp_hint">Dari data CPE (cron). Klik kartu untuk daftar terfilter.</p>
+                    <div class="o_isp_kpi_grid">
+                        <button type="button" class="o_isp_kpi"
+                                t-on-click="() => this.openKpi('cpe_total')">
+                            <span class="o_isp_kpi_label">Total CPE</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.network.total"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi o_isp_kpi_ok"
+                                t-on-click="() => this.openKpi('cpe_connected')">
+                            <span class="o_isp_kpi_label">Connected</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.network.connected"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi o_isp_kpi_danger"
+                                t-on-click="() => this.openKpi('cpe_disconnected')">
+                            <span class="o_isp_kpi_label">Disconnected</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.network.disconnected"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                                t-on-click="() => this.openKpi('cpe_isolated')">
+                            <span class="o_isp_kpi_label">Isolir</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.network.isolated"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                                t-on-click="() => this.openKpi('cpe_multisession')">
+                            <span class="o_isp_kpi_label">Multi-sesi</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.network.multisession"/>
+                        </button>
+                    </div>
+                    <div class="o_isp_attention" t-if="state.data.network.disconnected or state.data.network.isolated or state.data.network.multisession">
+                        <span>Perlu perhatian:</span>
+                        <button type="button" class="btn btn-link btn-sm"
+                                t-on-click="() => this.openKpi('cpe_disconnected')">
+                            <t t-esc="state.data.network.disconnected"/> disconnected
+                        </button>
+                        <button type="button" class="btn btn-link btn-sm"
+                                t-on-click="() => this.openKpi('cpe_isolated')">
+                            <t t-esc="state.data.network.isolated"/> isolir
+                        </button>
+                        <button type="button" class="btn btn-link btn-sm"
+                                t-on-click="() => this.openKpi('cpe_multisession')">
+                            <t t-esc="state.data.network.multisession"/> multi-sesi
+                        </button>
+                    </div>
+                </section>
+
+                <section class="o_isp_section">
+                    <h2>CPE per router</h2>
+                    <p class="o_isp_hint">Online/offline dari status PPPoE tersimpan, bukan ping. Klik angka untuk filter.</p>
+                    <div class="table-responsive">
+                        <table class="o_isp_table">
+                            <thead>
+                                <tr>
+                                    <th>Router</th>
+                                    <th>Area</th>
+                                    <th class="text-end">Online</th>
+                                    <th class="text-end">Offline</th>
+                                    <th class="text-end">%</th>
+                                    <th class="text-end">Multi</th>
+                                    <th class="text-end">Isolir</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.data.routers" t-as="router" t-key="router.id">
+                                    <tr t-att-class="router.cpe_stale ? 'o_isp_row_stale' : ''">
+                                        <td>
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_router', { router_id: router.id, router_name: router.name })"
+                                                    t-esc="router.name"/>
+                                            <div class="o_isp_muted" t-if="router.cpe_stale">Data CPE mungkin usang</div>
+                                        </td>
+                                        <td t-esc="router.area or '—'"/>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_router', { router_id: router.id, pppoe_status: 'connected', router_name: router.name })"
+                                                    t-esc="router.cpe_connected"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_router', { router_id: router.id, pppoe_status: 'disconnected', router_name: router.name })"
+                                                    t-esc="router.cpe_disconnected"/>
+                                        </td>
+                                        <td class="text-end" t-esc="router.cpe_online_pct"/>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_router', { router_id: router.id, is_multisession: true, router_name: router.name })"
+                                                    t-esc="router.cpe_multisession"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_router', { router_id: router.id, state: 'isolated', router_name: router.name })"
+                                                    t-esc="router.cpe_isolated"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="o_isp_section">
+                    <h2>Pelanggan / layanan</h2>
+                    <p class="o_isp_hint">Telat mulai tanggal 21. Isolir hanya lewat Isolir massal, tidak otomatis.</p>
+                    <div class="o_isp_kpi_grid">
+                        <button type="button" class="o_isp_kpi o_isp_kpi_ok"
+                                t-on-click="() => this.openKpi('partner_active')">
+                            <span class="o_isp_kpi_label">Pelanggan aktif</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.customers.partner_active"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi"
+                                t-on-click="() => this.openKpi('subscription_open')">
+                            <span class="o_isp_kpi_label">Langganan open</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.customers.subscription_open"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                                t-on-click="() => this.openKpi('subscription_review')">
+                            <span class="o_isp_kpi_label">Perlakuan khusus</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.customers.review_needed"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi o_isp_kpi_danger"
+                                t-on-click="() => this.openKpi('subscription_overdue')">
+                            <span class="o_isp_kpi_label">Telat (tgl 21)</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.customers.overdue"/>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="o_isp_section" t-if="state.data.finance.available">
+                    <h2>Keuangan <span class="o_isp_muted" t-esc="state.data.finance.period_label"/></h2>
+                    <p class="o_isp_hint">Hanya melihat invoice/pembayaran existing. Tidak membuat atau mem-post tagihan.</p>
+                    <div class="o_isp_kpi_grid o_isp_kpi_grid_wide">
+                        <button type="button" class="o_isp_kpi"
+                                t-on-click="() => this.openKpi('invoice_draft_month')">
+                            <span class="o_isp_kpi_label">Draft invoice bulan ini</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.finance.draft_count"/>
+                            <span class="o_isp_kpi_money" t-esc="state.data.finance.draft_amount_display"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi o_isp_kpi_warn"
+                                t-on-click="() => this.openKpi('invoice_outstanding')">
+                            <span class="o_isp_kpi_label">Posted belum lunas</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.finance.outstanding_count"/>
+                            <span class="o_isp_kpi_money" t-esc="state.data.finance.outstanding_amount_display"/>
+                        </button>
+                        <button type="button" class="o_isp_kpi o_isp_kpi_ok"
+                                t-on-click="() => this.openKpi('payment_month')">
+                            <span class="o_isp_kpi_label">Terbayar bulan ini</span>
+                            <span class="o_isp_kpi_value" t-esc="state.data.finance.paid_count"/>
+                            <span class="o_isp_kpi_money" t-esc="state.data.finance.paid_amount_display"/>
+                        </button>
+                    </div>
+                </section>
+            </t>
+
+            <t t-if="state.tab === 'router'">
+                <section class="o_isp_section">
+                    <h2>Health router area</h2>
+                    <p class="o_isp_hint">
+                        Ping TCP ke host:port API (konekterus), ICMP opsional. Timeout ~4 detik.
+                        Liang Pangi dan 127.* tidak dipaksa. Klik nama untuk form router, klik CPE untuk list.
+                    </p>
+                    <div class="table-responsive">
+                        <table class="o_isp_table">
+                            <thead>
+                                <tr>
+                                    <th>Router</th>
+                                    <th>Identity</th>
+                                    <th>Area</th>
+                                    <th>Health</th>
+                                    <th>Status ping</th>
+                                    <th>Cek terakhir</th>
+                                    <th>Pesan</th>
+                                    <th class="text-end">On</th>
+                                    <th class="text-end">Off</th>
+                                    <th class="text-end">Multi</th>
+                                    <th/>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.data.routers" t-as="router" t-key="router.id">
+                                    <tr t-att-class="(router.health_state === 'timeout' ? 'o_isp_row_danger ' : '') + (router.cpe_stale ? 'o_isp_row_stale' : '')">
+                                        <td>
+                                            <button type="button" class="btn btn-link p-0 fw-bold"
+                                                    t-on-click="() => this.openKpi('router_form', { router_id: router.id, router_name: router.name })"
+                                                    t-esc="router.name"/>
+                                            <div class="o_isp_muted" t-esc="router.host or ''"/>
+                                        </td>
+                                        <td t-esc="router.identity_name or '—'"/>
+                                        <td t-esc="router.area or '—'"/>
+                                        <td>
+                                            <span t-att-class="healthClass(router.health_state)"
+                                                  t-esc="router.health_label"/>
+                                        </td>
+                                        <td t-esc="pingLabel(router)"/>
+                                        <td t-esc="router.last_check_display or '—'"/>
+                                        <td class="o_isp_error" t-esc="router.last_error or '—'"/>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_router', { router_id: router.id, pppoe_status: 'connected', router_name: router.name })"
+                                                    t-esc="router.cpe_connected"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_router', { router_id: router.id, pppoe_status: 'disconnected', router_name: router.name })"
+                                                    t-esc="router.cpe_disconnected"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_router', { router_id: router.id, is_multisession: true, router_name: router.name })"
+                                                    t-esc="router.cpe_multisession"/>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-secondary"
+                                                    t-att-disabled="state.checking"
+                                                    t-on-click="() => this.checkOneRouter(router.id)">
+                                                Cek
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </t>
+
+            <t t-if="state.tab === 'aktivitas'">
+                <section class="o_isp_section">
+                    <h2>Perubahan status PPPoE</h2>
+                    <p class="o_isp_hint">
+                        15 event terbaru.
+                        <button type="button" class="btn btn-link btn-sm p-0"
+                                t-on-click="() => this.openKpi('history_status')">Lihat semua</button>
+                    </p>
+                    <div class="table-responsive">
+                        <table class="o_isp_table">
+                            <thead>
+                                <tr>
+                                    <th>Waktu</th>
+                                    <th>Pelanggan</th>
+                                    <th>CPE</th>
+                                    <th>Perubahan</th>
+                                    <th>Router</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.data.activity_status" t-as="row" t-key="row.id">
+                                    <tr>
+                                        <td t-esc="row.timestamp_display"/>
+                                        <td t-esc="row.partner_name or '—'"/>
+                                        <td>
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_form', { cpe_id: row.cpe_id, cpe_name: row.cpe_name })"
+                                                    t-esc="row.cpe_name"/>
+                                        </td>
+                                        <td>
+                                            <t t-esc="row.old_status"/> → <t t-esc="row.new_status"/>
+                                        </td>
+                                        <td t-esc="row.router_name or '—'"/>
+                                    </tr>
+                                </t>
+                                <tr t-if="!state.data.activity_status.length">
+                                    <td colspan="5" class="o_isp_muted">Belum ada perubahan status.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="o_isp_section">
+                    <h2>Masuk / keluar multi-sesi</h2>
+                    <p class="o_isp_hint">
+                        Deteksi saja — sesi extra tidak diputus.
+                        <button type="button" class="btn btn-link btn-sm p-0"
+                                t-on-click="() => this.openKpi('history_multisession')">Lihat semua</button>
+                    </p>
+                    <div class="table-responsive">
+                        <table class="o_isp_table">
+                            <thead>
+                                <tr>
+                                    <th>Waktu</th>
+                                    <th>Pelanggan</th>
+                                    <th>CPE</th>
+                                    <th>Event</th>
+                                    <th>Sesi</th>
+                                    <th>Router</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="state.data.activity_multi" t-as="row" t-key="row.id">
+                                    <tr>
+                                        <td t-esc="row.timestamp_display"/>
+                                        <td t-esc="row.partner_name or '—'"/>
+                                        <td>
+                                            <button type="button" class="btn btn-link p-0"
+                                                    t-on-click="() => this.openKpi('cpe_form', { cpe_id: row.cpe_id, cpe_name: row.cpe_name })"
+                                                    t-esc="row.cpe_name"/>
+                                        </td>
+                                        <td t-esc="row.event_label"/>
+                                        <td t-esc="row.session_count"/>
+                                        <td t-esc="row.router_name or '—'"/>
+                                    </tr>
+                                </t>
+                                <tr t-if="!state.data.activity_multi.length">
+                                    <td colspan="6" class="o_isp_muted">Belum ada event multi-sesi.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </t>
+
+            <p class="o_isp_foot" t-esc="state.data.note"/>
+            <p class="o_isp_foot" t-if="state.data.generated_at_display">
+                Dimuat <t t-esc="state.data.generated_at_display"/>
+            </p>
+        </div>
+    </t>
+</templates>

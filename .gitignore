@@ -42,4 +42,15 @@ media
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# Docker local data
+docker-data/
+filestore/
+sessions/
+*.log
+.env
+.env.*
+!.env.example
+!.env.radius.example
+ 

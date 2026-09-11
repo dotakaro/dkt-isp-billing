@@ -5,12 +5,12 @@
         <field name="name">isp.installation.type.tree</field>
         <field name="model">isp.installation.type</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="code"/>
                 <field name="price"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -41,6 +41,6 @@
     <record id="action_isp_installation_type" model="ir.actions.act_window">
         <field name="name">Jenis Instalasi</field>
         <field name="res_model">isp.installation.type</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 </odoo> 

@@ -1,0 +1,31 @@
+# Stack terpisah: restart Odoo tidak mematikan RADIUS.
+#   docker compose -f docker-compose.radius.yml --env-file .env.radius up -d
+name: dkt-radius
+
+services:
+  radius:
+    build:
+      context: ./docker/freeradius
+      dockerfile: Dockerfile
+    image: dkt-isp-radius:3.2.7
+    container_name: dkt-isp-radius
+    restart: unless-stopped
+    user: "0:0"
+    env_file:
+      - .env.radius
+    entrypoint: ["/bin/sh", "/opt/dkt-radius/entrypoint.sh"]
+    volumes:
+      - ./docker/freeradius/entrypoint.sh:/opt/dkt-radius/entrypoint.sh:ro
+      - ./docker/freeradius/clients.conf:/etc/freeradius/clients.conf:ro
+      - ./docker/freeradius/policy.d/dkt-local-fallback:/opt/dkt-radius/dkt-local-fallback:ro
+    ports:
+      - "${RADIUS_SQL_LISTEN:-127.0.0.1}:1812:1812/udp"
+      - "${RADIUS_SQL_LISTEN:-127.0.0.1}:1813:1813/udp"
+    networks:
+      - odoo_net
+    depends_on: []
+
+networks:
+  odoo_net:
+    name: dkt_default
+    external: true

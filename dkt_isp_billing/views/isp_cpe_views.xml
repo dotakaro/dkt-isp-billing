@@ -5,19 +5,40 @@
         <field name="name">isp.cpe.tree</field>
         <field name="model">isp.cpe</field>
         <field name="arch" type="xml">
-            <tree string="CPE" decoration-danger="state=='draft'" decoration-success="state=='open'" decoration-warning="state=='isolated'" decoration-muted="state=='terminated'">
+            <list string="CPE" js_class="isp_cpe_list"
+                  decoration-danger="pppoe_status == 'disconnected'"
+                  decoration-warning="pppoe_status != 'disconnected' and (is_multisession or state == 'isolated')"
+                  decoration-success="state == 'open' and pppoe_status != 'disconnected' and not is_multisession"
+                  decoration-muted="state == 'terminated'">
+                <header>
+                    <button name="action_refresh_list_status"
+                            type="object"
+                            string="Refresh status"
+                            class="btn-secondary"
+                            display="always"/>
+                    <button name="action_open_isolate_bulk"
+                            type="object"
+                            string="Isolir massal"/>
+                    <button name="action_open_parse_phone"
+                            type="object"
+                            string="Parse nomor dari secret"
+                            display="always"/>
+                </header>
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="mac_address"/>
                 <field name="ip_address"/>
                 <field name="pppoe_username"/>
+                <field name="area_id" optional="show"/>
                 <field name="mikrotik_config_id" optional="show"/>
                 <field name="pppoe_status"/>
+                <field name="pppoe_session_count" string="Sesi"/>
+                <field name="is_multisession" column_invisible="1"/>
                 <field name="pppoe_uptime"/>
                 <field name="upload_usage" sum="Total Upload"/>
                 <field name="download_usage" sum="Total Download"/>
                 <field name="state"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -64,10 +85,23 @@
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_pppoe_history"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-history"
+                                invisible="connection_type != 'pppoe'">
+                            <field name="pppoe_history_count" widget="statinfo" string="Riwayat PPPoE"/>
+                        </button>
+                    </div>
                     <div class="oe_title">
                         <h1>
                             <field name="name" placeholder="Nama Perangkat" readonly="state != 'draft'"/>
                         </h1>
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not is_multisession">
+                        Username PPPoE ini punya lebih dari satu sesi aktif di router yang sama.
+                        Toleransi: sesi extra tidak diputus. Periksa pemakaian username oleh teknisi.
                     </div>
                     <group>
                         <group>
@@ -88,7 +122,14 @@
                                    required="connection_type == 'pppoe'"
                                    widget="selection"
                                    readonly="state != 'draft'"/>
+                            <field name="area_id" readonly="1" invisible="connection_type != 'pppoe'"/>
                             <field name="ownership" readonly="state != 'draft'"/>
+                            <field name="technician_user_id"/>
+                            <field name="isp_onboarding"/>
+                            <field name="isp_activation_revoked"/>
+                            <field name="isp_evidence_waived"/>
+                            <field name="isp_first_connected_at" readonly="1"/>
+                            <field name="isp_evidence_deadline" readonly="1"/>
                         </group>
                     </group>
                     <notebook>
@@ -96,9 +137,12 @@
                             <group>
                                 <group string="Status PPPoE">
                                     <field name="pppoe_status" readonly="1"/>
+                                    <field name="pppoe_session_count" readonly="1"/>
+                                    <field name="is_multisession" readonly="1"/>
                                     <field name="pppoe_uptime" readonly="1"/>
                                     <field name="pppoe_last_seen" readonly="1"/>
                                     <field name="pppoe_caller_id" readonly="1"/>
+                                    <field name="pppoe_caller_ids" readonly="1" invisible="pppoe_session_count &lt;= 1"/>
                                     <field name="pppoe_address" readonly="1"/>
                                     <field name="pppoe_session_id" readonly="1"/>
                                 </group>
@@ -111,7 +155,7 @@
                         </page>
                         <page string="Subscription" name="subscription">
                             <field name="subscription_ids" context="{'default_partner_id': partner_id, 'default_cpe_id': id}" readonly="state != 'draft'">
-                                <tree>
+                                <list>
                                     <field name="name"/>
                                     <field name="package_id"/>
                                     <field name="date_start"/>
@@ -137,19 +181,35 @@
                                             type="object"
                                             icon="fa-stop"
                                             invisible="state not in ('open', 'isolated')"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="Riwayat" name="history">
                             <field name="history_ids">
-                                <tree>
+                                <list>
                                     <field name="name"/>
                                     <field name="date"/>
                                     <field name="device_name"/>
                                     <field name="replacement_reason"/>
                                     <field name="technician_id"/>
                                     <field name="cost"/>
-                                </tree>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Riwayat PPPoE" name="pppoe_history" invisible="connection_type != 'pppoe'">
+                            <field name="pppoe_history_ids" readonly="1">
+                                <list create="false" edit="false" delete="false">
+                                    <field name="timestamp"/>
+                                    <field name="event_type"/>
+                                    <field name="old_status"/>
+                                    <field name="new_status"/>
+                                    <field name="session_count"/>
+                                    <field name="uptime"/>
+                                    <field name="caller_id"/>
+                                    <field name="ip_address"/>
+                                    <field name="router_id"/>
+                                    <field name="source"/>
+                                </list>
                             </field>
                         </page>
                         <page string="Catatan" name="notes">
@@ -169,9 +229,12 @@
                                 </group>
                                 <group string="PPPoE Status">
                                     <field name="pppoe_status" readonly="1"/>
+                                    <field name="pppoe_session_count" readonly="1"/>
+                                    <field name="is_multisession" readonly="1"/>
                                     <field name="pppoe_uptime" readonly="1"/>
                                     <field name="pppoe_last_seen" readonly="1"/>
                                     <field name="pppoe_caller_id" readonly="1"/>
+                                    <field name="pppoe_caller_ids" readonly="1" invisible="pppoe_session_count &lt;= 1"/>
                                     <field name="pppoe_address" readonly="1"/>
                                     <field name="pppoe_session_id" readonly="1"/>
                                 </group>
@@ -220,10 +283,7 @@
                         </page>
                     </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -239,6 +299,7 @@
                 <field name="mac_address"/>
                 <field name="ip_address"/>
                 <field name="pppoe_username"/>
+                <field name="area_id"/>
                 <field name="mikrotik_config_id"/>
                 <separator/>
                 <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
@@ -248,12 +309,24 @@
                 <separator/>
                 <filter string="Connected" name="connected" domain="[('pppoe_status', '=', 'connected')]"/>
                 <filter string="Disconnected" name="disconnected" domain="[('pppoe_status', '=', 'disconnected')]"/>
-                <group expand="0" string="Group By">
+                <filter string="Multi-sesi" name="multisession" domain="[('is_multisession', '=', True)]"/>
+                <filter string="Pasang baru" name="onboarding" domain="[('isp_onboarding', '=', True)]"/>
+                <filter string="Aktivasi dicabut eviden" name="revoked" domain="[('isp_activation_revoked', '=', True)]"/>
+                <filter string="Perlu perhatian" name="need_attention" domain="[('is_multisession', '=', True)]"/>
+                <group>
                     <filter string="Pelanggan" name="group_by_customer" context="{'group_by': 'partner_id'}"/>
                     <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
                     <filter string="Status PPPoE" name="group_by_pppoe" context="{'group_by': 'pppoe_status'}"/>
+                    <filter string="Multi-sesi" name="group_by_multisession" context="{'group_by': 'is_multisession'}"/>
+                    <filter string="Area" name="group_by_area" context="{'group_by': 'area_id'}"/>
                     <filter string="Router Mikrotik" name="group_by_mikrotik" context="{'group_by': 'mikrotik_config_id'}"/>
                 </group>
+                <searchpanel>
+                    <field name="mikrotik_config_id"
+                           string="Router MikroTik"
+                           icon="fa-sitemap"
+                           enable_counters="1"/>
+                </searchpanel>
             </search>
         </field>
     </record>
@@ -262,11 +335,25 @@
     <record id="action_isp_cpe" model="ir.actions.act_window">
         <field name="name">CPE</field>
         <field name="res_model">isp.cpe</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_isp_cpe_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Buat CPE baru
+            </p>
+        </field>
+    </record>
+
+    <record id="action_isp_cpe_attention" model="ir.actions.act_window">
+        <field name="name">Perlu perhatian</field>
+        <field name="res_model">isp.cpe</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_cpe_search"/>
+        <field name="domain">[('is_multisession', '=', True)]</field>
+        <field name="context">{'search_default_multisession': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tidak ada CPE multi-sesi saat ini
             </p>
         </field>
     </record>

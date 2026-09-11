@@ -43,6 +43,7 @@ class ISPInstallationWizard(models.TransientModel):
     ip_address = fields.Char('IP Address')
     outdoor_unit = fields.Char('Outdoor Unit')
     router = fields.Char('Router')
+    area_id = fields.Many2one('isp.area', string='Area / Desa')
     mikrotik_config_id = fields.Many2one('isp.mikrotik.config', string='Router Mikrotik', 
                                         domain="[('active', '=', True)]",
                                         help="Router Mikrotik tempat user PPPoE dibuat")
@@ -99,7 +100,7 @@ class ISPInstallationWizard(models.TransientModel):
         
         # Set default package_id jika ada
         if 'package_id' in fields_list and not res.get('package_id'):
-            default_package = self.env['isp.package'].search([], limit=1)
+            default_package = self.env['isp.package'].get_default_package()
             if default_package:
                 res['package_id'] = default_package.id
         
@@ -110,12 +111,7 @@ class ISPInstallationWizard(models.TransientModel):
                 res['installation_type_id'] = default_installation_type.id
                 res['installation_amount'] = default_installation_type.price
         
-        # Set default mikrotik_config_id jika ada
-        if 'mikrotik_config_id' in fields_list and not res.get('mikrotik_config_id'):
-            default_mikrotik = self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
-            if default_mikrotik:
-                res['mikrotik_config_id'] = default_mikrotik.id
-        
+        # Jangan pilih router default — teknisi harus pilih area/router.
         return res
     
     @api.onchange('is_new_customer')
@@ -166,11 +162,13 @@ class ISPInstallationWizard(models.TransientModel):
             self.country_id = self.partner_id.country_id
             self.email = self.partner_id.email
             self.phone = self.partner_id.phone
-            self.mobile = self.partner_id.mobile
+            self.mobile = self.partner_id.phone
             self.identity_number = self.partner_id.identity_number
             self.emergency_contact = self.partner_id.emergency_contact
             self.emergency_phone = self.partner_id.emergency_phone
             self.notes = self.partner_id.comment
+            if self.partner_id.area_id:
+                self.area_id = self.partner_id.area_id
             
             # Isi data CPE dengan nama pelanggan
             if not self.cpe_name:
@@ -216,18 +214,29 @@ class ISPInstallationWizard(models.TransientModel):
                 self.installation_type_id = default_installation_type.id
                 self.installation_amount = default_installation_type.price
     
+    @api.onchange('area_id')
+    def _onchange_area_id(self):
+        # Satu router bisa untuk banyak desa. Jangan paksa router = area.
+        suggested = self.area_id.mikrotik_config_ids.filtered('active')[:1]
+        if suggested and not self.mikrotik_config_id:
+            self.mikrotik_config_id = suggested
+        return {
+            'domain': {
+                'mikrotik_config_id': [('active', '=', True)],
+            }
+        }
+
+    @api.onchange('mikrotik_config_id')
+    def _onchange_mikrotik_config_id(self):
+        # Jangan timpa desa pelanggan dari area "rumah" router.
+        return
+
     @api.onchange('package_id')
     def _onchange_package_id(self):
         if not self.package_id:
-            # Jika package_id dihapus, cari nilai default
-            default_package = self.env['isp.package'].search([], limit=1)
+            default_package = self.env['isp.package'].get_default_package()
             if default_package:
                 self.package_id = default_package.id
-        else:
-            # Jika paket dipilih dan memiliki profil dengan konfigurasi Mikrotik,
-            # update mikrotik_config_id sesuai dengan profil paket
-            if self.package_id.profile_id and self.package_id.profile_id.mikrotik_config_id:
-                self.mikrotik_config_id = self.package_id.profile_id.mikrotik_config_id
     
     @api.model
     def _generate_random_password(self, length=8):
@@ -264,6 +273,8 @@ class ISPInstallationWizard(models.TransientModel):
             else:
                 if not self.partner_id:
                     raise ValidationError('Pelanggan harus dipilih!')
+            if not self.area_id:
+                raise ValidationError('Area / desa harus dipilih!')
             self.state = 'cpe'
             
         elif self.state == 'cpe':
@@ -334,18 +345,20 @@ class ISPInstallationWizard(models.TransientModel):
                 'zip': self.zip,
                 'country_id': self.country_id.id if self.country_id else False,
                 'email': self.email,
-                'phone': self.phone,
-                'mobile': self.mobile,
+                'phone': self.mobile or self.phone,
                 'identity_number': self.identity_number,
                 'emergency_contact': self.emergency_contact,
                 'emergency_phone': self.emergency_phone,
                 'notes': self.notes,
                 'customer_rank': 1,
                 'state': 'draft',
+                'area_id': self.area_id.id if self.area_id else False,
             }
             partner = self.env['res.partner'].create(partner_vals)
         else:
             partner = self.partner_id
+            if self.area_id and not partner.area_id:
+                partner.area_id = self.area_id.id
         
         # 2. Buat data CPE
         cpe_vals = {
@@ -374,7 +387,7 @@ class ISPInstallationWizard(models.TransientModel):
             'cpe_id': cpe.id,
             'package_id': self.package_id.id,
             'date_start': self.date_start,
-            'due_day': self.due_day,
+            'due_day': self.env['isp.subscription']._billing_due_day(),
             'recurring_interval': self.recurring_interval,
             'recurring_rule_type': self.recurring_rule_type,
             'discount_id': self.discount_id.id if self.discount_id else False,

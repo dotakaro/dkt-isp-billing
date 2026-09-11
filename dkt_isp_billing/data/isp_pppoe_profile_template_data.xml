@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+        <record id="pppoe_profile_template_sapu_jagad" model="isp.pppoe.profile.template">
+            <field name="name">SAPU-JAGAD</field>
+            <field name="sequence">1</field>
+            <field name="rate_limit"></field>
+            <field name="is_unlimited" eval="True"/>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Profile rebutan / unlimited. Semua pelanggan existing memakai ini sampai rate-limit diaktifkan.</field>
+        </record>
+        <record id="pppoe_profile_template_7m" model="isp.pppoe.profile.template">
+            <field name="name">150-7M</field>
+            <field name="sequence">7</field>
+            <field name="rate_limit">7M/7M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="active" eval="True"/>
+            <field name="note">Default Paket 150.</field>
+        </record>
+        <record id="pppoe_profile_template_10m" model="isp.pppoe.profile.template">
+            <field name="name">200-10M</field>
+            <field name="sequence">10</field>
+            <field name="rate_limit">10M/10M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Default Paket 200.</field>
+        </record>
+        <record id="pppoe_profile_template_200_15m" model="isp.pppoe.profile.template">
+            <field name="name">200-15M</field>
+            <field name="sequence">11</field>
+            <field name="rate_limit">15M/15M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Varian Paket 200 dengan bandwidth 15M.</field>
+        </record>
+        <record id="pppoe_profile_template_200_20m" model="isp.pppoe.profile.template">
+            <field name="name">200-20M</field>
+            <field name="sequence">12</field>
+            <field name="rate_limit">20M/20M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Varian Paket 200 dengan bandwidth 20M.</field>
+        </record>
+        <record id="pppoe_profile_template_15m" model="isp.pppoe.profile.template">
+            <field name="name">250-15M</field>
+            <field name="sequence">15</field>
+            <field name="rate_limit">15M/15M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Default Paket 250.</field>
+        </record>
+        <record id="pppoe_profile_template_20m" model="isp.pppoe.profile.template">
+            <field name="name">300-20M</field>
+            <field name="sequence">20</field>
+            <field name="rate_limit">20M/20M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Default Paket 300.</field>
+        </record>
+        <record id="pppoe_profile_template_25m" model="isp.pppoe.profile.template">
+            <field name="name">350-25M</field>
+            <field name="sequence">25</field>
+            <field name="rate_limit">25M/25M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Default Paket 350.</field>
+        </record>
+        <record id="pppoe_profile_template_40m" model="isp.pppoe.profile.template">
+            <field name="name">500-40M</field>
+            <field name="sequence">40</field>
+            <field name="rate_limit">40M/40M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Default Paket 500.</field>
+        </record>
+        <record id="pppoe_profile_template_50m" model="isp.pppoe.profile.template">
+            <field name="name">600-50M</field>
+            <field name="sequence">50</field>
+            <field name="rate_limit">50M/50M</field>
+            <field name="only_one" eval="False"/>
+            <field name="auto_push" eval="False"/>
+            <field name="active" eval="True"/>
+            <field name="note">Default Paket 600.</field>
+        </record>
+        <record id="pppoe_profile_template_isolir" model="isp.pppoe.profile.template">
+            <field name="name">isolir</field>
+            <field name="sequence">90</field>
+            <field name="rate_limit">64k/64k</field>
+            <field name="only_one" eval="False"/>
+            <field name="is_isolir" eval="True"/>
+            <field name="auto_push" eval="False"/>
+            <field name="note">Profile isolir + address-list isolir untuk walled garden / landing page.</field>
+        </record>
+    </data>
+</odoo>

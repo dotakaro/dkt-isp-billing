@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Menu Root -->
+    <!-- Menu Root: buka dashboard saat masuk aplikasi -->
     <menuitem id="menu_isp_root"
               name="ISP Billing"
-              web_icon="dkt_isp_billing,static/description/icon.png"
+              action="action_isp_dashboard"
               sequence="10"/>
+
+    <menuitem id="menu_isp_dashboard"
+              name="Dashboard"
+              parent="menu_isp_root"
+              action="action_isp_dashboard"
+              sequence="1"/>
               
     <!-- Menu Pelanggan -->
     <menuitem id="menu_isp_customer_root"
@@ -22,7 +28,15 @@
               name="Pasang Baru"
               parent="menu_isp_customer_root"
               action="dkt_isp_billing.action_isp_installation_wizard"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,dkt_isp_billing.group_isp_technician,base.group_system"
               sequence="20"/>
+
+    <menuitem id="menu_isp_parse_phone"
+              name="Parse nomor dari secret"
+              parent="menu_isp_customer_root"
+              action="action_isp_parse_phone_wizard"
+              groups="dkt_isp_billing.group_isp_manager,base.group_system"
+              sequence="30"/>
               
     <!-- Menu Layanan -->
     <menuitem id="menu_isp_service_root"
@@ -77,6 +91,12 @@
               parent="menu_isp_device_root"
               action="action_isp_cpe"
               sequence="10"/>
+
+    <menuitem id="menu_isp_cpe_attention"
+              name="Perlu perhatian"
+              parent="menu_isp_device_root"
+              action="action_isp_cpe_attention"
+              sequence="15"/>
               
     <menuitem id="menu_isp_device_history"
               name="Riwayat Perangkat"
@@ -84,47 +104,188 @@
               action="action_isp_device_history"
               sequence="20"/>
 
-    <!-- Menu Keuangan -->
+    <menuitem id="menu_isp_cpe_pppoe_history"
+              name="Riwayat PPPoE"
+              parent="menu_isp_device_root"
+              action="action_isp_cpe_pppoe_history"
+              sequence="30"/>
+
+    <!-- Menu Tagihan: siklus draft → post → nunggak → isolir → WA -->
+    <menuitem id="menu_isp_billing_root"
+              name="Tagihan"
+              parent="menu_isp_root"
+              action="action_isp_billing_dashboard"
+              sequence="35"/>
+
+    <menuitem id="menu_isp_billing_dashboard"
+              name="Dashboard tagihan"
+              parent="menu_isp_billing_root"
+              action="action_isp_billing_dashboard"
+              sequence="1"/>
+
+    <menuitem id="menu_isp_billing_run"
+              name="Proses tagihan"
+              parent="menu_isp_billing_root"
+              action="action_isp_billing_run_wizard"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+              sequence="10"/>
+
+    <menuitem id="menu_isp_billing_invoice_root"
+              name="Invoice"
+              parent="menu_isp_billing_root"
+              sequence="20"/>
+
+    <menuitem id="menu_isp_invoice_draft"
+              name="Draft Invoice"
+              parent="menu_isp_billing_invoice_root"
+              action="action_isp_invoice_draft"
+              sequence="10"/>
+
+    <menuitem id="menu_isp_invoice_outstanding"
+              name="Belum lunas"
+              parent="menu_isp_billing_invoice_root"
+              action="action_isp_invoice_outstanding"
+              sequence="20"/>
+
+    <menuitem id="menu_isp_invoice_posted"
+              name="Posted Invoice"
+              parent="menu_isp_billing_invoice_root"
+              action="action_isp_invoice_posted"
+              sequence="30"/>
+
+    <menuitem id="menu_isp_invoice"
+              name="Semua invoice langganan"
+              parent="menu_isp_billing_invoice_root"
+              action="action_isp_invoice_all"
+              sequence="40"/>
+
+    <menuitem id="menu_isp_installation_invoice"
+              name="Invoice Instalasi"
+              parent="menu_isp_billing_invoice_root"
+              action="action_isp_installation_invoice"
+              sequence="50"/>
+
+    <menuitem id="menu_isp_invoice_late"
+              name="Telat"
+              parent="menu_isp_billing_root"
+              action="action_isp_subscription_late"
+              sequence="30"/>
+
+    <menuitem id="menu_isp_subscription_special"
+              name="Perlakuan khusus"
+              parent="menu_isp_billing_root"
+              action="action_isp_subscription_special"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+              sequence="40"/>
+
+    <menuitem id="menu_isp_billing_isolate_root"
+              name="Isolir"
+              parent="menu_isp_billing_root"
+              sequence="50"/>
+
+    <menuitem id="menu_isp_isolate_bulk"
+              name="Isolir massal"
+              parent="menu_isp_billing_isolate_root"
+              action="action_isp_isolate_bulk_wizard"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,dkt_isp_billing.group_isp_technician,base.group_system"
+              sequence="10"/>
+
+    <menuitem id="menu_isp_unisolate_failed"
+              name="Gagal buka isolir"
+              parent="menu_isp_billing_isolate_root"
+              action="action_isp_unisolate_failed"
+              sequence="20"/>
+
+    <menuitem id="menu_isp_billing_wa_root"
+              name="Pemberitahuan"
+              parent="menu_isp_billing_root"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+              sequence="60"/>
+
+    <menuitem id="menu_isp_notification_prepare"
+              name="Pemberitahuan WA"
+              parent="menu_isp_billing_wa_root"
+              action="action_isp_notification_prepare_wizard"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+              sequence="10"/>
+
+    <menuitem id="menu_isp_notification_queue"
+              name="Antrian pemberitahuan"
+              parent="menu_isp_billing_wa_root"
+              action="action_isp_notification_queue"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+              sequence="20"/>
+
+    <menuitem id="menu_isp_whatsapp_log"
+              name="Log WhatsApp"
+              parent="menu_isp_billing_wa_root"
+              action="action_isp_whatsapp_message"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+              sequence="30"/>
+
+    <menuitem id="menu_isp_wa_registration"
+              name="Antrian pendaftaran WA"
+              parent="menu_isp_billing_wa_root"
+              action="action_isp_wa_registration"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+              sequence="25"/>
+
+    <menuitem id="menu_isp_discount"
+              name="Diskon"
+              parent="menu_isp_billing_root"
+              action="action_isp_discount"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+              sequence="70"/>
+
+    <!-- Menu Keuangan: kas, bukti, verifikasi, jurnal pembayaran -->
     <menuitem id="menu_isp_finance_root"
               name="Keuangan"
               parent="menu_isp_root"
               sequence="40"/>
 
-    <menuitem id="menu_isp_invoice"
-              name="Invoice Langganan"
+    <menuitem id="menu_isp_payment_proof"
+              name="Bukti pembayaran"
               parent="menu_isp_finance_root"
-              action="action_isp_invoice_all"
+              action="action_isp_payment_proof"
+              sequence="10"/>
+
+    <menuitem id="menu_isp_payment_proof_verify"
+              name="Verifikasi pembayaran"
+              parent="menu_isp_finance_root"
+              action="action_isp_payment_proof_verify"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
               sequence="20"/>
 
-    <menuitem id="menu_isp_invoice_draft"
-              name="Draft Invoice"
+    <menuitem id="menu_isp_payment_proof_review"
+              name="Perlu review"
               parent="menu_isp_finance_root"
-              action="action_isp_invoice_draft"
-              sequence="20"/>
-
-    <menuitem id="menu_isp_invoice_posted"
-              name="Posted Invoice"
-              parent="menu_isp_finance_root"
-              action="action_isp_invoice_posted"
+              action="action_isp_payment_proof_review"
               sequence="30"/>
 
-    <menuitem id="menu_isp_installation_invoice"
-              name="Invoice Instalasi"
+    <menuitem id="menu_isp_cash_payment"
+              name="Bayar kas"
               parent="menu_isp_finance_root"
-              action="action_isp_installation_invoice"
-              sequence="35"/>
-
-    <menuitem id="menu_isp_discount"
-              name="Diskon"
-              parent="menu_isp_finance_root"
-              action="action_isp_discount"
+              action="action_isp_cash_payment_wizard"
               sequence="40"/>
+
+    <menuitem id="menu_isp_payment"
+              name="Pembayaran Pelanggan"
+              parent="menu_isp_finance_root"
+              action="action_isp_payment"
+              sequence="50"/>
 
     <!-- Menu Konfigurasi -->
     <menuitem id="menu_isp_config_root"
               name="Konfigurasi"
               parent="menu_isp_root"
+              groups="dkt_isp_billing.group_isp_manager,base.group_system"
               sequence="100"/>
+
+    <menuitem id="menu_isp_area"
+              name="Area / Desa"
+              parent="menu_isp_config_root"
+              action="action_isp_area"
+              sequence="5"/>
 
     <menuitem id="menu_isp_mikrotik"
               name="Mikrotik"
@@ -132,16 +293,36 @@
               action="view_isp_mikrotik_config_action"
               sequence="10"/>
 
+    <menuitem id="menu_isp_pppoe_profile_template"
+              name="Template Profile PPPoE"
+              parent="menu_isp_config_root"
+              action="action_isp_pppoe_profile_template"
+              sequence="15"/>
+
     <menuitem id="menu_isp_mikrotik_profile"
               name="Profile Mikrotik"
               parent="menu_isp_config_root"
               action="view_isp_mikrotik_profile_action"
               sequence="20"/>
 
+    <menuitem id="menu_isp_whatsapp_template"
+              name="Template WhatsApp"
+              parent="menu_isp_config_root"
+              action="action_isp_whatsapp_template"
+              groups="dkt_isp_billing.group_isp_manager,base.group_system"
+              sequence="80"/>
+
+    <menuitem id="menu_isp_config_settings"
+              name="Pengaturan ISP"
+              parent="menu_isp_config_root"
+              action="action_isp_config_settings"
+              sequence="90"/>
+
     <!-- Submenu untuk Laporan -->
     <menuitem id="menu_isp_laporan_root"
               name="Laporan"
               parent="menu_isp_root"
+              groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
               sequence="50"/>
 
     <menuitem id="menu_isp_report_list"

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_pppoe_profile_template_list" model="ir.ui.view">
+        <field name="name">isp.pppoe.profile.template.list</field>
+        <field name="model">isp.pppoe.profile.template</field>
+        <field name="arch" type="xml">
+            <list>
+                <header>
+                    <button name="action_push_to_all_routers"
+                            type="object"
+                            string="Push ke semua router"
+                            class="btn-primary"
+                            display="always"/>
+                    <button name="action_allow_multisession_all"
+                            type="object"
+                            string="Izinkan multi-sesi semua profile"
+                            class="btn-secondary"
+                            display="always"/>
+                </header>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="rate_limit"/>
+                <field name="is_unlimited"/>
+                <field name="only_one"/>
+                <field name="is_isolir"/>
+                <field name="router_profile_count"/>
+                <field name="package_count"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_isp_pppoe_profile_template_form" model="ir.ui.view">
+        <field name="name">isp.pppoe.profile.template.form</field>
+        <field name="model">isp.pppoe.profile.template</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_push_to_all_routers"
+                            type="object"
+                            string="Push ke semua router"
+                            class="oe_highlight"/>
+                    <button name="action_assign_all_secrets"
+                            type="object"
+                            string="Pindahkan semua secret ke profile ini"
+                            class="btn-warning"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Contoh: 10M"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="rate_limit" placeholder="10M/10M" invisible="is_unlimited"/>
+                            <field name="is_unlimited"/>
+                            <field name="only_one"/>
+                            <field name="is_isolir"/>
+                        </group>
+                        <group>
+                            <field name="local_address"/>
+                            <field name="remote_address"/>
+                            <field name="parent_queue"/>
+                            <field name="auto_push"/>
+                            <field name="active"/>
+                            <field name="sequence"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Status per router" name="routers">
+                            <field name="router_profile_ids" readonly="1">
+                                <list>
+                                    <field name="mikrotik_config_id"/>
+                                    <field name="rate_limit"/>
+                                    <field name="sync_state"/>
+                                    <field name="last_sync"/>
+                                    <field name="sync_error"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Paket" name="packages">
+                            <field name="package_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="price"/>
+                                    <field name="subscription_count"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Catatan" name="note">
+                            <field name="note"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_isp_pppoe_profile_template" model="ir.actions.act_window">
+        <field name="name">Template Profile PPPoE</field>
+        <field name="res_model">isp.pppoe.profile.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Buat template profile kanonik</p>
+            <p>Nama ini di-push ke semua router area, misalnya 10M, 20M, isolir.</p>
+        </field>
+    </record>
+</odoo>

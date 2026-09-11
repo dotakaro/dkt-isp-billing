@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_isolate_bulk_wizard_form" model="ir.ui.view">
+        <field name="name">isp.isolate.bulk.wizard.form</field>
+        <field name="model">isp.isolate.bulk.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Isolir massal">
+                <group>
+                    <field name="note" nolabel="1" colspan="2"/>
+                </group>
+                <group>
+                    <group>
+                        <field name="area_id"/>
+                        <field name="cpe_id"/>
+                    </group>
+                    <group>
+                        <field name="candidate_count"/>
+                        <field name="selected_count"/>
+                        <field name="isolated_count"/>
+                        <field name="failed_count"/>
+                    </group>
+                </group>
+                <field name="line_ids" nolabel="1">
+                    <list editable="bottom" create="false">
+                        <field name="selected"/>
+                        <field name="partner_id"/>
+                        <field name="cpe_id"/>
+                        <field name="area_id"/>
+                        <field name="router_id"/>
+                        <field name="is_late"/>
+                        <field name="state"/>
+                        <field name="subscription_id" optional="hide"/>
+                    </list>
+                </field>
+                <field name="log" nolabel="1" placeholder="Hasil isolir muncul di sini"/>
+                <footer>
+                    <button name="action_load" type="object" string="Muat kandidat telat"/>
+                    <button name="action_confirm_isolate" type="object"
+                            string="Isolir yang dipilih"
+                            class="btn-warning"
+                            confirm="Isolir pelanggan terpilih ke router CPE masing-masing. Jumlah sesuai yang dicentang. Lanjutkan?"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_isp_isolate_bulk_wizard" model="ir.actions.act_window">
+        <field name="name">Isolir massal</field>
+        <field name="res_model">isp.isolate.bulk.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

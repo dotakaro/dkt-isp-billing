@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_notification_prepare_wizard_form" model="ir.ui.view">
+        <field name="name">isp.notification.prepare.wizard.form</field>
+        <field name="model">isp.notification.prepare.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Pemberitahuan WhatsApp">
+                <group>
+                    <field name="note" nolabel="1" colspan="2"/>
+                    <field name="wa_mode_note" nolabel="1" colspan="2"/>
+                </group>
+                <group>
+                    <group>
+                        <field name="area_id"/>
+                        <field name="only_late"/>
+                        <field name="template_kind"/>
+                        <field name="custom_body" invisible="template_kind != 'custom'"
+                               placeholder="Contoh: Info gangguan di area Anda. Tim sedang menangani. Abaikan jika sudah normal."/>
+                        <field name="wa_provider" readonly="1"/>
+                        <field name="wa_dry_run"/>
+                    </group>
+                    <group>
+                        <field name="add_queue_tag"/>
+                        <field name="add_auto_tag"/>
+                        <field name="selected_count"/>
+                        <field name="tagged_count"/>
+                        <field name="sent_count"/>
+                        <field name="failed_count"/>
+                        <field name="wa_has_credentials" invisible="1"/>
+                    </group>
+                </group>
+                <group string="Contoh teks">
+                    <field name="preview_body" nolabel="1" colspan="2"/>
+                </group>
+                <field name="line_ids" nolabel="1">
+                    <list editable="bottom" create="false">
+                        <field name="selected"/>
+                        <field name="partner_id"/>
+                        <field name="area_id"/>
+                        <field name="phone"/>
+                    </list>
+                </field>
+                <field name="log" nolabel="1" placeholder="Hasil penandaan / pengiriman muncul di sini"/>
+                <footer>
+                    <button name="action_load" type="object" string="Muat kandidat"/>
+                    <button name="action_load_queue" type="object" string="Muat antrian notif_siap"/>
+                    <button name="action_prepare" type="object"
+                            string="Tandai tag / antrian"
+                            class="btn-secondary"
+                            confirm="Hanya menandai tag. Tidak mengirim WA/SMS/email. Lanjutkan?"/>
+                    <button name="action_send_whatsapp" type="object"
+                            string="Kirim WhatsApp"
+                            class="oe_highlight"
+                            confirm="Hanya ke baris yang dipilih. Jika dry-run atau token kosong, hanya log. Tidak blast ke semua. Lanjutkan?"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_isp_notification_prepare_wizard" model="ir.actions.act_window">
+        <field name="name">Pemberitahuan WA</field>
+        <field name="res_model">isp.notification.prepare.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <record id="action_isp_notification_prepare_wizard_subscription" model="ir.actions.act_window">
+        <field name="name">Pemberitahuan WA</field>
+        <field name="res_model">isp.notification.prepare.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="model_isp_subscription"/>
+        <field name="binding_view_types">list</field>
+    </record>
+</odoo>

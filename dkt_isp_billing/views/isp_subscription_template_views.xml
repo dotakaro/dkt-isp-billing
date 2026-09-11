@@ -5,13 +5,13 @@
         <field name="name">isp.subscription.template.tree</field>
         <field name="model">isp.subscription.template</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="package_id"/>
                 <field name="recurring_interval"/>
                 <field name="recurring_rule_type"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -39,11 +39,7 @@
                     </group>
                     <field name="description" placeholder="Deskripsi template..."/>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -52,6 +48,6 @@
     <record id="action_isp_subscription_template" model="ir.actions.act_window">
         <field name="name">Template Berlangganan</field>
         <field name="res_model">isp.subscription.template</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 </odoo> 

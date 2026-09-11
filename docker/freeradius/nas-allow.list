@@ -1,0 +1,4 @@
+# Satu IP per baris. Hanya IP sumber NAS (egress konekterus), bukan IP LAN router.
+# 127.0.0.1 selalu diizinkan oleh skrip firewall.
+127.0.0.1
+179.65.209.75  # Pintu Angin /ip cloud public-address

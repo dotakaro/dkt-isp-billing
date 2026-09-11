@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="area_pintu_angin" model="isp.area">
+            <field name="name">Pintu Angin</field>
+            <field name="code">PINTU_ANGIN</field>
+        </record>
+        <record id="area_liang_pangi" model="isp.area">
+            <field name="name">Liang Pangi</field>
+            <field name="code">LIANG_PANGI</field>
+        </record>
+        <record id="area_guni" model="isp.area">
+            <field name="name">Guni</field>
+            <field name="code">GUNI</field>
+        </record>
+        <record id="area_sinaman" model="isp.area">
+            <field name="name">Sinaman</field>
+            <field name="code">SINAMAN</field>
+        </record>
+        <record id="area_samura" model="isp.area">
+            <field name="name">Samura</field>
+            <field name="code">SAMURA</field>
+        </record>
+        <record id="area_tiga_jumpa" model="isp.area">
+            <field name="name">Tiga Jumpa</field>
+            <field name="code">TIGA_JUMPA</field>
+        </record>
+        <record id="area_perbesi" model="isp.area">
+            <field name="name">Perbesi</field>
+            <field name="code">PERBESI</field>
+        </record>
+        <record id="area_lau_baleng" model="isp.area">
+            <field name="name">Lau Baleng</field>
+            <field name="code">LAU_BALENG</field>
+        </record>
+        <record id="area_bulan_jahe" model="isp.area">
+            <field name="name">Bulan Jahe</field>
+            <field name="code">BULAN_JAHE</field>
+        </record>
+        <record id="area_tanjung_pulo" model="isp.area">
+            <field name="name">Tanjung Pulo</field>
+            <field name="code">TANJUNG_PULO</field>
+        </record>
+
+        <!-- Winbox = port akses konekterus. API = port akses + 1. Password diisi di form Odoo. -->
+        <record id="mikrotik_pintu_angin" model="isp.mikrotik.config">
+            <field name="name">Pintu Angin</field>
+            <field name="area_id" ref="area_pintu_angin"/>
+            <field name="access_host">id01.konekterus.com:16286</field>
+            <field name="host">id01.konekterus.com:16287</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+        </record>
+        <record id="mikrotik_liang_pangi" model="isp.mikrotik.config">
+            <field name="name">Liang Pangi</field>
+            <field name="area_id" ref="area_liang_pangi"/>
+            <field name="access_host">id01.konekterus.com:16499</field>
+            <field name="host">id01.konekterus.com:16500</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+        </record>
+        <record id="mikrotik_guni" model="isp.mikrotik.config">
+            <field name="name">Guni</field>
+            <field name="area_id" ref="area_guni"/>
+            <field name="access_host">id01.konekterus.com:16013</field>
+            <field name="host">id01.konekterus.com:16014</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+        </record>
+        <record id="mikrotik_sinaman" model="isp.mikrotik.config">
+            <field name="name">Sinaman</field>
+            <field name="area_id" ref="area_sinaman"/>
+            <field name="access_host">id01.konekterus.com:16595</field>
+            <field name="host">id01.konekterus.com:16596</field>
+            <field name="username">wasapada</field>
+            <field name="session_backend">mikrotik_secret</field>
+            <field name="bandwidth_cap_exempt" eval="True"/>
+        </record>
+        <record id="mikrotik_samura" model="isp.mikrotik.config">
+            <field name="name">Samura</field>
+            <field name="area_id" ref="area_samura"/>
+            <field name="access_host">id01.konekterus.com:17108</field>
+            <field name="host">id01.konekterus.com:17109</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+            <field name="bandwidth_cap_rate">10M/10M</field>
+        </record>
+        <record id="mikrotik_tiga_jumpa" model="isp.mikrotik.config">
+            <field name="name">Tiga Jumpa</field>
+            <field name="area_id" ref="area_tiga_jumpa"/>
+            <field name="access_host">sg02.konekterus.com:14632</field>
+            <field name="host">sg02.konekterus.com:14633</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+        </record>
+        <record id="mikrotik_perbesi" model="isp.mikrotik.config">
+            <field name="name">Perbesi</field>
+            <field name="area_id" ref="area_perbesi"/>
+            <field name="access_host">id02.konekterus.com:13189</field>
+            <field name="host">id02.konekterus.com:13190</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+        </record>
+        <record id="mikrotik_lau_baleng" model="isp.mikrotik.config">
+            <field name="name">Lau Baleng</field>
+            <field name="area_id" ref="area_lau_baleng"/>
+            <field name="access_host">id02.konekterus.com:12895</field>
+            <field name="host">id02.konekterus.com:12896</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+        </record>
+        <record id="mikrotik_bulan_jahe" model="isp.mikrotik.config">
+            <field name="name">Bulan Jahe</field>
+            <field name="area_id" ref="area_bulan_jahe"/>
+            <field name="access_host">id02.konekterus.com:12979</field>
+            <field name="host">id02.konekterus.com:12980</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+            <field name="bandwidth_cap_exempt" eval="True"/>
+        </record>
+        <record id="mikrotik_tanjung_pulo" model="isp.mikrotik.config">
+            <field name="name">Tanjung Pulo</field>
+            <field name="area_id" ref="area_tanjung_pulo"/>
+            <field name="access_host">id02.konekterus.com:13864</field>
+            <field name="host">id02.konekterus.com:13865</field>
+            <field name="username">admin</field>
+            <field name="session_backend">mikrotik_secret</field>
+        </record>
+    </data>
+</odoo>

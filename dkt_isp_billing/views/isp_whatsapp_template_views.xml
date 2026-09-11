@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_whatsapp_template_list" model="ir.ui.view">
+        <field name="name">isp.whatsapp.template.list</field>
+        <field name="model">isp.whatsapp.template</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_isp_whatsapp_template_form" model="ir.ui.view">
+        <field name="name">isp.whatsapp.template.form</field>
+        <field name="model">isp.whatsapp.template</field>
+        <field name="arch" type="xml">
+            <form string="Template WhatsApp">
+                <header>
+                    <button name="action_reset_default" type="object"
+                            string="Kembalikan teks bawaan"
+                            confirm="Isi pesan akan diganti teks bawaan modul. Lanjutkan?"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                            <field name="sequence"/>
+                        </group>
+                        <group>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="Variabel">
+                        <field name="placeholder_help" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Isi pesan">
+                        <field name="body" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Pratinjau (pelanggan contoh)">
+                        <field name="preview" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_isp_whatsapp_template" model="ir.actions.act_window">
+        <field name="name">Template WhatsApp</field>
+        <field name="res_model">isp.whatsapp.template</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

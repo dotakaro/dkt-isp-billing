@@ -1,0 +1,207 @@
+.o_isp_dashboard {
+    --isp-border: #e5e7eb;
+    --isp-ok: #157347;
+    --isp-danger: #b02a37;
+    --isp-warn: #b45309;
+    background: var(--o-view-background-color, #f4f5f7);
+    padding: 16px 20px 40px;
+    color: #1f2937;
+}
+
+.o_isp_dash_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.o_isp_dash_title {
+    font-size: 1.45rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+}
+
+.o_isp_dash_sub,
+.o_isp_hint,
+.o_isp_foot {
+    color: #6b7280;
+    font-size: 0.85rem;
+    margin: 0 0 10px;
+}
+
+.o_isp_dash_actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.o_isp_tabs {
+    display: flex;
+    gap: 4px;
+    margin: 8px 0 16px;
+    border-bottom: 1px solid var(--isp-border);
+}
+
+.o_isp_tabs button {
+    border: 0;
+    background: transparent;
+    padding: 8px 14px;
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+}
+
+.o_isp_tabs button.active {
+    color: #1f2937;
+    border-bottom-color: #0d6efd;
+}
+
+.o_isp_section {
+    background: #fff;
+    border: 1px solid var(--isp-border);
+    border-radius: 10px;
+    padding: 16px 18px 18px;
+    margin-bottom: 14px;
+}
+
+.o_isp_section h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+}
+
+.o_isp_kpi_grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.o_isp_kpi_grid_wide {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+
+.o_isp_kpi {
+    text-align: left;
+    background: #fff;
+    border: 1px solid var(--isp-border);
+    border-left: 4px solid #6b7280;
+    border-radius: 8px;
+    padding: 12px 14px;
+    min-height: 84px;
+}
+
+.o_isp_kpi:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+}
+
+.o_isp_kpi_ok { border-left-color: var(--isp-ok); }
+.o_isp_kpi_danger { border-left-color: var(--isp-danger); }
+.o_isp_kpi_warn { border-left-color: var(--isp-warn); }
+
+.o_isp_kpi_label {
+    display: block;
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.o_isp_kpi_value {
+    display: block;
+    font-size: 1.55rem;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.o_isp_kpi_money {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.86rem;
+    color: #374151;
+}
+
+.o_isp_attention {
+    margin-top: 12px;
+    padding: 8px 10px;
+    background: #fff8e6;
+    border-radius: 6px;
+    font-size: 0.86rem;
+}
+
+.o_isp_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+}
+
+.o_isp_table th,
+.o_isp_table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--isp-border);
+    vertical-align: top;
+}
+
+.o_isp_table th {
+    color: #6b7280;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.o_isp_row_stale td {
+    background: #fffbeb;
+}
+
+.o_isp_row_danger td {
+    background: #fef2f2;
+}
+
+.o_isp_badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.o_isp_badge_ok { background: #d1e7dd; color: #0f5132; }
+.o_isp_badge_danger { background: #f8d7da; color: #842029; }
+.o_isp_badge_warn { background: #fff3cd; color: #664d03; }
+.o_isp_badge_muted { background: #e9ecef; color: #495057; }
+
+.o_isp_muted { color: #9ca3af; font-size: 0.78rem; }
+.o_isp_error { color: #6b7280; max-width: 220px; }
+.o_isp_empty { padding: 32px; text-align: center; color: #6b7280; }
+.o_isp_foot { margin-top: 8px; }
+
+.o_isp_flow {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.o_isp_flow_btn {
+    text-align: left;
+    background: #f8fafc;
+    border: 1px solid var(--isp-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+
+.o_isp_flow_btn:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+}
+
+.o_isp_flow_btn strong {
+    display: block;
+    font-size: 0.92rem;
+    margin-bottom: 4px;
+}
+
+.o_isp_flow_btn span {
+    display: block;
+    font-size: 0.78rem;
+    color: #6b7280;
+    line-height: 1.35;
+}

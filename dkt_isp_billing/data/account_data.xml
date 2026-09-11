@@ -1,71 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
-        <!-- Definisi Akun Pendapatan -->
         <record id="revenue_account" model="account.account">
             <field name="name">Pendapatan Layanan ISP</field>
-            <field name="code">40010</field>
+            <field name="prefix">40010</field>
+            <field name="code_digits" eval="5"/>
             <field name="account_type">income</field>
             <field name="reconcile" eval="False"/>
-            <field name="company_id" ref="base.main_company"/>
         </record>
-        
         <record id="installation_revenue_account" model="account.account">
             <field name="name">Pendapatan Instalasi</field>
-            <field name="code">40020</field>
+            <field name="prefix">40020</field>
+            <field name="code_digits" eval="5"/>
             <field name="account_type">income</field>
             <field name="reconcile" eval="False"/>
-            <field name="company_id" ref="base.main_company"/>
         </record>
-        
         <record id="sales_revenue_account" model="account.account">
             <field name="name">Penjualan ISP</field>
-            <field name="code">41000020</field>
+            <field name="prefix">41000</field>
+            <field name="code_digits" eval="5"/>
             <field name="account_type">income</field>
             <field name="reconcile" eval="False"/>
-            <field name="company_id" ref="base.main_company"/>
         </record>
-        
-        <!-- Definisi Akun Piutang -->
         <record id="receivable_account" model="account.account">
             <field name="name">Piutang Pelanggan ISP</field>
-            <field name="code">11210012</field>
+            <field name="prefix">11210</field>
+            <field name="code_digits" eval="5"/>
             <field name="account_type">asset_receivable</field>
             <field name="reconcile" eval="True"/>
-            <field name="company_id" ref="base.main_company"/>
         </record>
-        
-        <!-- Definisi Akun Biaya -->
         <record id="expense_account" model="account.account">
             <field name="name">Biaya Operasional ISP</field>
-            <field name="code">50000</field>
+            <field name="prefix">50000</field>
+            <field name="code_digits" eval="5"/>
             <field name="account_type">expense</field>
             <field name="reconcile" eval="False"/>
-            <field name="company_id" ref="base.main_company"/>
         </record>
-        
         <record id="device_expense_account" model="account.account">
             <field name="name">Biaya Perangkat</field>
-            <field name="code">50010</field>
+            <field name="prefix">50010</field>
+            <field name="code_digits" eval="5"/>
             <field name="account_type">expense</field>
             <field name="reconcile" eval="False"/>
-            <field name="company_id" ref="base.main_company"/>
         </record>
-        
         <record id="maintenance_expense_account" model="account.account">
             <field name="name">Biaya Maintenance</field>
-            <field name="code">50020</field>
+            <field name="prefix">50020</field>
+            <field name="code_digits" eval="5"/>
             <field name="account_type">expense</field>
             <field name="reconcile" eval="False"/>
-            <field name="company_id" ref="base.main_company"/>
         </record>
-        
-        <!-- Definisi Jurnal untuk Laporan Keuangan -->
         <record id="financial_report_journal" model="account.journal">
             <field name="name">Jurnal Laporan Keuangan</field>
             <field name="code">FIN</field>
             <field name="type">general</field>
-            <field name="company_id" ref="base.main_company"/>
         </record>
     </data>
-</odoo> 
+</odoo>

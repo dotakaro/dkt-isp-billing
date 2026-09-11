@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  TIDAK dimuat di __manifest__.py.
+  Record whatsapp.template butuh modul Enterprise `whatsapp` — bukan jalur Fonnte/Meta.
+  Sumber teks yang dipakai: WA_TEMPLATES di models/isp_whatsapp_message.py
+  (invoice / due / late). Jangan jadikan file ini sistem template kedua.
+-->
 <odoo>
     <data noupdate="1">
-        <!-- Template Aktivasi -->
+        <!-- Template Aktivasi (arsip desain; tidak terpasang) -->
         <record id="whatsapp_template_activation" model="whatsapp.template">
             <field name="name">ISP - Aktivasi Layanan</field>
             <field name="template_name">isp_activation</field>

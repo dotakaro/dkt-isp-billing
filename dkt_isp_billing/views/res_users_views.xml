@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_users_form_isp_area" model="ir.ui.view">
+        <field name="name">res.users.form.isp.area</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='access_rights']" position="after">
+                <page string="Area ISP" name="isp_area"
+                      groups="dkt_isp_billing.group_isp_manager,base.group_system">
+                    <group>
+                        <field name="isp_area_ids" widget="many2many_tags"
+                               placeholder="Area yang boleh dikelola Admin Desa / Kolektor"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+        <record id="config_billing_due_day" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.due_day</field>
+            <field name="value">1</field>
+        </record>
+        <record id="config_billing_late_day" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.late_day</field>
+            <field name="value">21</field>
+        </record>
+        <record id="config_billing_apply_tax" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.apply_tax</field>
+            <field name="value">False</field>
+        </record>
+        <record id="config_auto_isolate_enabled" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.auto_isolate_enabled</field>
+            <field name="value">False</field>
+        </record>
+    </data>
+    <data noupdate="1">
+        <record id="config_radius_enabled" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.radius_enabled</field>
+            <field name="value">False</field>
+        </record>
+        <record id="config_radius_db_host" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.radius_db_host</field>
+            <field name="value">dkt-isp-db</field>
+        </record>
+    </data>
+    <data noupdate="0">
+        <record id="config_radius_landing_url" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.radius_landing_url</field>
+            <field name="value">https://billing.dotakaro.com/isp/isolir</field>
+        </record>
+    </data>
+    <data noupdate="1">
+        <record id="config_wa_provider" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_provider</field>
+            <field name="value">fonnte</field>
+        </record>
+        <record id="config_wa_dry_run" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_dry_run</field>
+            <field name="value">True</field>
+        </record>
+        <record id="config_wa_rate_delay" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_rate_delay</field>
+            <field name="value">0.5</field>
+        </record>
+        <record id="config_wa_inbound_enabled" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_inbound_enabled</field>
+            <field name="value">True</field>
+        </record>
+        <record id="config_ocr_auto_post_threshold" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.ocr_auto_post_threshold</field>
+            <field name="value">0.85</field>
+        </record>
+        <record id="config_ocr_auto_post_enabled" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.ocr_auto_post_enabled</field>
+            <field name="value">False</field>
+        </record>
+        <record id="config_dest_bank_name" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.dest_bank_name</field>
+            <field name="value">BANK BRI</field>
+        </record>
+        <record id="config_dest_account_number" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.dest_account_number</field>
+            <field name="value">014401000343565</field>
+        </record>
+        <record id="config_dest_account_name" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.dest_account_name</field>
+            <field name="value">WASPADA SINULINGGA</field>
+        </record>
+        <record id="config_wa_meta_api_version" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_meta_api_version</field>
+            <field name="value">v21.0</field>
+        </record>
+        <record id="config_wa_meta_template_lang" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_meta_template_lang</field>
+            <field name="value">id</field>
+        </record>
+        <record id="config_auto_isolate_backend" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.auto_isolate_backend</field>
+            <field name="value">mikrotik_secret</field>
+        </record>
+        <record id="config_auto_isolate_trigger" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.auto_isolate_trigger</field>
+            <field name="value">late_day</field>
+        </record>
+        <record id="config_wa_register_enabled" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_register_enabled</field>
+            <field name="value">False</field>
+        </record>
+        <record id="config_wa_register_mode" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_register_mode</field>
+            <field name="value">queue</field>
+        </record>
+        <record id="config_wa_evidence_required" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_evidence_required</field>
+            <field name="value">False</field>
+        </record>
+        <record id="config_wa_evidence_hours" model="ir.config_parameter">
+            <field name="key">dkt_isp_billing.wa_evidence_hours</field>
+            <field name="value">24</field>
+        </record>
+        <record id="partner_category_isp" model="res.partner.category">
+            <field name="name">ISP</field>
+        </record>
+        <record id="partner_category_notif_otomatis" model="res.partner.category">
+            <field name="name">notif_otomatis</field>
+            <field name="parent_id" ref="partner_category_isp"/>
+        </record>
+        <record id="partner_category_notif_siap" model="res.partner.category">
+            <field name="name">notif_siap</field>
+            <field name="parent_id" ref="partner_category_isp"/>
+        </record>
+    </data>
+</odoo>

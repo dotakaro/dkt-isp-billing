@@ -5,14 +5,26 @@
         <field name="name">isp.package.tree</field>
         <field name="model">isp.package</field>
         <field name="arch" type="xml">
-            <tree string="Paket">
+            <list string="Paket">
+                <header>
+                    <button name="action_sync_router_profiles_from_subscriptions"
+                            type="object"
+                            string="Terapkan paket langganan ke router"
+                            class="btn-primary"
+                            display="always"/>
+                    <button name="action_apply_bandwidth_savings_7m"
+                            type="object"
+                            string="Cap bandwidth 7M (hemat)"
+                            display="always"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
+                </header>
                 <field name="name"/>
-                <field name="profile_id"/>
-                <field name="mikrotik_config_id"/>
+                <field name="profile_template_id"/>
                 <field name="price"/>
+                <field name="is_default"/>
                 <field name="subscription_count"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -22,6 +34,17 @@
         <field name="model">isp.package</field>
         <field name="arch" type="xml">
             <form string="Paket">
+                <header>
+                    <button name="action_push_profile_to_all_routers"
+                            type="object"
+                            string="Push profile ke semua router"
+                            class="oe_highlight"
+                            invisible="not profile_template_id"/>
+                    <button name="action_push_and_assign_shared_profile"
+                            type="object"
+                            string="Terapkan SAPU-JAGAD ke semua secret"
+                            invisible="not is_default"/>
+                </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button name="action_view_subscriptions" type="object" class="oe_stat_button" icon="fa-list">
@@ -35,39 +58,47 @@
                     </div>
                     <group>
                         <group>
-                            <field name="profile_id"/>
-                            <field name="mikrotik_config_id" readonly="1"/>
+                            <field name="profile_template_id"/>
                             <field name="price"/>
+                            <field name="is_default"/>
                             <field name="product_id" readonly="1"/>
+                            <field name="profile_id" groups="base.group_no_one"/>
+                            <field name="mikrotik_config_id" readonly="1" groups="base.group_no_one"/>
                         </group>
                         <group>
                             <field name="active"/>
+                            <field name="code"/>
                             <field name="bandwidth_up"/>
                             <field name="bandwidth_down"/>
                         </group>
                     </group>
                     <notebook>
+                        <page string="Harga per area" name="area_prices">
+                            <field name="area_price_ids">
+                                <list editable="bottom">
+                                    <field name="area_id"/>
+                                    <field name="price"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Deskripsi" name="description">
                             <field name="description"/>
                         </page>
                         <page string="Subscription" name="subscription">
                             <field name="subscription_ids" readonly="1">
-                                <tree>
+                                <list>
                                     <field name="name"/>
                                     <field name="partner_id"/>
                                     <field name="date_start"/>
                                     <field name="next_invoice_date"/>
                                     <field name="state"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -79,14 +110,12 @@
         <field name="arch" type="xml">
             <search string="Paket">
                 <field name="name"/>
-                <field name="profile_id"/>
-                <field name="mikrotik_config_id"/>
+                <field name="profile_template_id"/>
                 <separator/>
                 <filter string="Aktif" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Arsip" name="inactive" domain="[('active', '=', False)]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Profile" name="group_by_profile" context="{'group_by': 'profile_id'}"/>
-                    <filter string="Router Mikrotik" name="group_by_mikrotik" context="{'group_by': 'mikrotik_config_id'}"/>
+                <group>
+                    <filter string="Template Profile" name="group_by_template" context="{'group_by': 'profile_template_id'}"/>
                 </group>
             </search>
         </field>
@@ -96,7 +125,7 @@
     <record id="action_isp_package" model="ir.actions.act_window">
         <field name="name">Paket</field>
         <field name="res_model">isp.package</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_isp_package_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

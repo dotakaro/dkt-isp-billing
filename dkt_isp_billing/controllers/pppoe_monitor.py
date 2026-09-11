@@ -43,7 +43,7 @@ class PPPoEMonitorController(http.Controller):
                 
             # Update data di model
             try:
-                cpe.write({
+                cpe.with_context(pppoe_status_source='monitor').write({
                     'is_monitoring': True,
                     'current_upload_rate': stats['rate_out'] + ' kbps',
                     'current_download_rate': stats['rate_in'] + ' kbps',
@@ -129,7 +129,7 @@ class PPPoEMonitorController(http.Controller):
     def _get_pppoe_stats(self, cpe):
         """Ambil statistik PPPoE dari Mikrotik"""
         try:
-            mikrotik = request.env['isp.mikrotik.config'].sudo().search([('active', '=', True)], limit=1)
+            mikrotik = cpe.mikrotik_config_id
             if not mikrotik:
                 _logger.warning('No active Mikrotik configuration found')
                 return None

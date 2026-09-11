@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_parse_phone_wizard_form" model="ir.ui.view">
+        <field name="name">isp.parse.phone.wizard.form</field>
+        <field name="model">isp.parse.phone.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Parse nomor dari secret">
+                <group>
+                    <field name="note" nolabel="1" colspan="2"/>
+                </group>
+                <group>
+                    <group>
+                        <field name="overwrite_manual"/>
+                        <field name="parsed_count"/>
+                        <field name="skipped_count"/>
+                        <field name="partner_count"/>
+                    </group>
+                    <group>
+                        <field name="filled_count"/>
+                        <field name="updated_count"/>
+                        <field name="unchanged_count"/>
+                        <field name="skip_manual_count"/>
+                    </group>
+                </group>
+                <field name="log" nolabel="1" placeholder="Hasil parse muncul di sini. Nomor lengkap tidak ditampilkan."/>
+                <footer>
+                    <button name="action_parse" type="object"
+                            string="Parse nomor dari secret"
+                            class="oe_highlight"
+                            confirm="Isi phone dari username PPPoE. Nomor manual berbeda tidak ditimpa kecuali dicentang. Tidak mengirim WA. Lanjutkan?"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_isp_parse_phone_wizard" model="ir.actions.act_window">
+        <field name="name">Parse nomor dari secret</field>
+        <field name="res_model">isp.parse.phone.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <record id="action_isp_parse_phone_wizard_partner" model="ir.actions.act_window">
+        <field name="name">Parse nomor dari secret</field>
+        <field name="res_model">isp.parse.phone.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <record id="action_isp_parse_phone_wizard_cpe" model="ir.actions.act_window">
+        <field name="name">Parse nomor dari secret</field>
+        <field name="res_model">isp.parse.phone.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="model_isp_cpe"/>
+        <field name="binding_view_types">list</field>
+    </record>
+</odoo>

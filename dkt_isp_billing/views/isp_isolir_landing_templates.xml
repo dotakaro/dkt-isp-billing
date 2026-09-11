@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="isolir_landing_page" name="Layanan sementara dibatasi">
+        <t t-call="portal.frontend_layout">
+            <t t-set="no_header" t-value="False"/>
+            <div id="wrap" class="o_portal container py-5">
+                <div class="row justify-content-center">
+                    <div class="col-md-7 col-lg-6">
+                        <h1 class="h3 mb-3">Layanan sementara dibatasi</h1>
+                        <p>
+                            Mohon maaf, koneksi internet Anda saat ini dibatasi karena
+                            administrasi tagihan belum selesai.
+                        </p>
+                        <p>
+                            Silakan selesaikan pembayaran agar layanan dapat kami aktifkan
+                            kembali. Setelah transfer, kirim foto struk ke WhatsApp
+                            <t t-esc="company_name"/> dengan caption
+                            <strong>BAYAR username</strong> atau
+                            <strong>BAYAR 08xxxxxxxxxx</strong>.
+                        </p>
+                        <t t-if="dest_account">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="text-muted">Rekening tujuan</div>
+                                    <div t-esc="dest_bank"/>
+                                    <div><strong t-esc="dest_account"/></div>
+                                    <div t-esc="dest_name"/>
+                                </div>
+                            </div>
+                        </t>
+                        <p class="text-muted mb-0">
+                            Jika membutuhkan bantuan, hubungi admin desa Anda.
+                            Terima kasih atas kerjasamanya.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>

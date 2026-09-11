@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_billing_run_wizard_form" model="ir.ui.view">
+        <field name="name">isp.billing.run.wizard.form</field>
+        <field name="model">isp.billing.run.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Proses tagihan">
+                <group>
+                    <field name="policy_note" nolabel="1" colspan="2"/>
+                </group>
+                <group>
+                    <group>
+                        <field name="fetch_mikrotik"/>
+                    </group>
+                    <group>
+                        <field name="drafts_fixed"/>
+                    </group>
+                </group>
+                <group string="Hasil pemetaan paket">
+                    <group>
+                        <field name="mapped_150"/>
+                        <field name="mapped_200"/>
+                        <field name="mapped_250"/>
+                        <field name="mapped_300"/>
+                    </group>
+                    <group>
+                        <field name="mapped_350"/>
+                        <field name="mapped_500"/>
+                        <field name="mapped_600"/>
+                        <field name="mapped_unknown"/>
+                    </group>
+                </group>
+                <group string="Hasil draft tagihan">
+                    <group>
+                        <field name="invoices_created"/>
+                        <field name="invoices_skipped"/>
+                    </group>
+                    <group>
+                        <field name="invoices_failed"/>
+                    </group>
+                </group>
+                <field name="log" nolabel="1" placeholder="Hasil proses muncul di sini"/>
+                <footer>
+                    <button name="action_remap" type="object" string="Petakan paket komersial" class="oe_highlight"/>
+                    <button name="action_generate_drafts" type="object" string="Buat draft tagihan bulan ini"/>
+                    <button name="action_fix_drafts" type="object" string="Rapikan draft (pajak 0, tgl 1)"/>
+                    <button string="Tutup" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_isp_billing_run_wizard" model="ir.actions.act_window">
+        <field name="name">Proses tagihan</field>
+        <field name="res_model">isp.billing.run.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

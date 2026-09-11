@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_isp_dashboard" model="ir.actions.client">
+        <field name="name">Dashboard</field>
+        <field name="tag">isp_billing_dashboard</field>
+        <field name="target">current</field>
+    </record>
+
+    <record id="action_isp_billing_dashboard" model="ir.actions.client">
+        <field name="name">Dashboard tagihan</field>
+        <field name="tag">isp_invoice_dashboard</field>
+        <field name="target">current</field>
+    </record>
+
+    <record id="action_isp_cpe_connected" model="ir.actions.act_window">
+        <field name="name">CPE Connected</field>
+        <field name="res_model">isp.cpe</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_cpe_search"/>
+        <field name="domain">[('pppoe_status', '=', 'connected')]</field>
+        <field name="context">{'search_default_connected': 1}</field>
+    </record>
+
+    <record id="action_isp_cpe_disconnected" model="ir.actions.act_window">
+        <field name="name">CPE Disconnected</field>
+        <field name="res_model">isp.cpe</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_cpe_search"/>
+        <field name="domain">[('pppoe_status', '=', 'disconnected')]</field>
+        <field name="context">{'search_default_disconnected': 1}</field>
+    </record>
+
+    <record id="action_isp_cpe_isolated" model="ir.actions.act_window">
+        <field name="name">CPE terisolir</field>
+        <field name="res_model">isp.cpe</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_cpe_search"/>
+        <field name="domain">[('state', '=', 'isolated')]</field>
+        <field name="context">{'search_default_isolated': 1}</field>
+    </record>
+
+    <record id="action_isp_subscription_review" model="ir.actions.act_window">
+        <field name="name">Perlakuan khusus</field>
+        <field name="res_model">isp.subscription</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_subscription_search"/>
+        <field name="domain">[('is_special_treatment', '=', True)]</field>
+        <field name="context">{'search_default_special_treatment': 1}</field>
+    </record>
+
+    <record id="action_isp_subscription_overdue" model="ir.actions.act_window">
+        <field name="name">Langganan telat</field>
+        <field name="res_model">isp.subscription</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_subscription_search"/>
+        <field name="domain">['|', ('is_late', '=', True), ('overdue_marked', '=', True)]</field>
+        <field name="context">{'search_default_late': 1}</field>
+    </record>
+</odoo>

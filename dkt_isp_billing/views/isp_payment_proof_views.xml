@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_payment_proof_list" model="ir.ui.view">
+        <field name="name">isp.payment.proof.list</field>
+        <field name="model">isp.payment.proof</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state in ('paid', 'verified') and not is_underpayment"
+                  decoration-info="state == 'submitted'"
+                  decoration-warning="state in ('review', 'draft') or is_underpayment"
+                  decoration-danger="state == 'rejected' or dest_match == 'mismatch'"
+                  decoration-muted="state == 'draft'">
+                <header>
+                    <button name="action_run_ocr" type="object" string="OCR ulang"/>
+                    <button name="action_submit" type="object" string="Ajukan verifikasi"/>
+                    <button name="action_verify" type="object" string="Verifikasi &amp; post"
+                            groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"/>
+                    <button name="action_open_reject_wizard" type="object" string="Tolak"
+                            groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"/>
+                </header>
+                <field name="name"/>
+                <field name="proof_type"/>
+                <field name="source" optional="show"/>
+                <field name="wa_match" optional="hide"/>
+                <field name="partner_id"/>
+                <field name="area_id" optional="show"/>
+                <field name="subscription_id" optional="hide"/>
+                <field name="invoice_id"/>
+                <field name="amount_ocr"/>
+                <field name="is_underpayment" optional="show"/>
+                <field name="amount_manual" optional="hide"/>
+                <field name="ref_ocr"/>
+                <field name="dest_match"/>
+                <field name="ocr_engine" optional="hide"/>
+                <field name="confidence" optional="show"/>
+                <field name="needs_review"/>
+                <field name="submitted_by" optional="hide"/>
+                <field name="verified_by" optional="hide"/>
+                <field name="state"/>
+                <field name="payment_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_isp_payment_proof_form" model="ir.ui.view">
+        <field name="name">isp.payment.proof.form</field>
+        <field name="model">isp.payment.proof</field>
+        <field name="arch" type="xml">
+            <form string="Bukti pembayaran">
+                <header>
+                    <button name="action_run_ocr" type="object" string="Jalankan OCR"
+                            class="btn-secondary"
+                            invisible="state in ('paid', 'verified') or proof_type == 'cash'"/>
+                    <button name="action_use_chatter_attachment" type="object"
+                            string="Ambil dari lampiran chatter"
+                            invisible="state in ('paid', 'verified') or proof_type == 'cash'"/>
+                    <button name="action_revalidate_dest" type="object"
+                            string="Validasi ulang tujuan"
+                            invisible="state in ('paid', 'verified') or proof_type == 'cash'"/>
+                    <button name="action_mark_manual" type="object" string="Isi manual"
+                            invisible="state in ('paid', 'verified', 'submitted')"/>
+                    <button name="action_submit" type="object"
+                            string="Ajukan ke admin pusat"
+                            class="oe_highlight"
+                            invisible="state not in ('draft', 'review', 'rejected')"
+                            confirm="Ajukan ke antrian verifikasi. Belum lunas. Lanjutkan?"/>
+                    <button name="action_verify" type="object"
+                            string="Verifikasi &amp; post pembayaran"
+                            class="oe_highlight"
+                            groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+                            invisible="state in ('paid', 'verified', 'rejected')"
+                            confirm="Cek screenshot, rekening tujuan, nominal, dan no.ref. Post pembayaran jika yakin?"/>
+                    <button name="action_open_reject_wizard" type="object"
+                            string="Tolak"
+                            groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+                            invisible="state in ('paid', 'verified', 'rejected')"/>
+                    <button name="action_mark_review" type="object"
+                            string="Tandai review"
+                            groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+                            invisible="state in ('paid', 'verified', 'rejected', 'review')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,submitted,review,paid,rejected"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="proof_type" readonly="state in ('paid', 'verified')"/>
+                            <field name="source" readonly="1"/>
+                            <field name="submitted_by"/>
+                            <field name="submitted_at"/>
+                        </group>
+                        <group>
+                            <field name="verified_by"/>
+                            <field name="verified_at"/>
+                            <field name="public_name" invisible="source not in ('whatsapp', 'whatsapp_group') and not public_name"/>
+                            <field name="public_phone" invisible="source not in ('whatsapp', 'whatsapp_group') and not public_phone"/>
+                            <field name="wa_match" invisible="source not in ('whatsapp', 'whatsapp_group')"/>
+                            <field name="inbound_note" invisible="source not in ('whatsapp', 'whatsapp_group')"/>
+                            <field name="wa_confirm_phone" invisible="not wa_confirm_phone"/>
+                            <field name="wa_confirm_deadline" invisible="not wa_confirm_deadline"/>
+                        </group>
+                    </group>
+                    <group string="Unggah bukti" invisible="proof_type == 'cash'">
+                        <field name="image" filename="image_filename" widget="image" options="{'size': [320, 480]}"
+                               readonly="state in ('paid', 'verified')"/>
+                        <field name="image_filename" invisible="1"/>
+                    </group>
+                    <group string="Hasil baca OCR" invisible="proof_type == 'cash'">
+                        <group>
+                            <field name="status_ocr"/>
+                            <field name="amount_ocr"/>
+                            <field name="is_underpayment" invisible="not is_underpayment"/>
+                            <field name="date_ocr"/>
+                            <field name="ref_ocr"/>
+                            <field name="confidence"/>
+                            <field name="ocr_engine"/>
+                        </group>
+                        <group>
+                            <field name="sender_name_ocr"/>
+                            <field name="sender_bank_ocr"/>
+                            <field name="sender_account_ocr"/>
+                            <field name="dest_name_ocr"/>
+                            <field name="dest_bank_ocr"/>
+                            <field name="dest_account_ocr"/>
+                            <field name="dest_match"/>
+                            <field name="dest_match_note"/>
+                        </group>
+                    </group>
+                    <group string="Pencocokan pelanggan / invoice">
+                        <group>
+                            <field name="area_id" readonly="state in ('paid', 'verified')"/>
+                            <field name="partner_id" readonly="state in ('paid', 'verified')"/>
+                            <field name="cpe_id" readonly="state in ('paid', 'verified')"/>
+                            <field name="subscription_id" readonly="state in ('paid', 'verified')"/>
+                            <field name="invoice_id" readonly="state in ('paid', 'verified')"/>
+                        </group>
+                        <group>
+                            <field name="amount_manual" readonly="state in ('paid', 'verified')"/>
+                            <field name="journal_id" readonly="state in ('paid', 'verified')"/>
+                            <field name="payment_id"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="needs_review"/>
+                            <field name="review_reason"/>
+                            <field name="reject_reason"/>
+                        </group>
+                    </group>
+                    <group string="Catatan OCR" invisible="proof_type == 'cash'">
+                        <field name="ocr_note" nolabel="1" colspan="2"/>
+                        <field name="ocr_raw" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_isp_payment_proof_search" model="ir.ui.view">
+        <field name="name">isp.payment.proof.search</field>
+        <field name="model">isp.payment.proof</field>
+        <field name="arch" type="xml">
+            <search string="Cari bukti pembayaran">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="invoice_id"/>
+                <field name="ref_ocr"/>
+                <field name="sender_name_ocr"/>
+                <field name="area_id"/>
+                <field name="public_name"/>
+                <filter string="Antrian pusat" name="queue" domain="[('state', 'in', ('submitted', 'review'))]"/>
+                <filter string="Diajukan" name="submitted" domain="[('state', '=', 'submitted')]"/>
+                <filter string="Perlu review" name="needs_review" domain="[('needs_review', '=', True)]"/>
+                <filter string="Pembayaran kurang" name="underpayment" domain="[('is_underpayment', '=', True)]"/>
+                <filter string="Tujuan salah" name="dest_mismatch" domain="[('dest_match', '=', 'mismatch')]"/>
+                <filter string="Kas tunai" name="cash" domain="[('proof_type', '=', 'cash')]"/>
+                <filter string="Transfer" name="transfer" domain="[('proof_type', '=', 'transfer')]"/>
+                <filter string="Portal / tautan" name="customer" domain="[('source', 'in', ('portal', 'public'))]"/>
+                <filter string="WhatsApp" name="whatsapp" domain="[('source', 'in', ('whatsapp', 'whatsapp_group'))]"/>
+                <filter string="Ditolak" name="rejected" domain="[('state', '=', 'rejected')]"/>
+                <filter string="Lunas" name="paid" domain="[('state', 'in', ('paid', 'verified'))]"/>
+                <group>
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Sumber" name="group_source" context="{'group_by': 'source'}"/>
+                    <filter string="Area" name="group_area" context="{'group_by': 'area_id'}"/>
+                    <filter string="Pelanggan" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_isp_payment_proof" model="ir.actions.act_window">
+        <field name="name">Bukti pembayaran</field>
+        <field name="res_model">isp.payment.proof</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Unggah screenshot transfer atau ajukan kas. Admin desa/kolektor hanya mengajukan.
+                Admin pusat yang verifikasi bukti TF sebelum jurnal lunas.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_isp_payment_proof_review" model="ir.actions.act_window">
+        <field name="name">Perlu review</field>
+        <field name="res_model">isp.payment.proof</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_payment_proof_search"/>
+        <field name="domain">['|', ('needs_review', '=', True), ('state', '=', 'review')]</field>
+        <field name="context">{'search_default_needs_review': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tidak ada bukti yang perlu direview. Masuk sini jika OCR gagal, nominal beda, atau rekening tujuan salah.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_isp_payment_proof_verify" model="ir.actions.act_window">
+        <field name="name">Verifikasi pembayaran</field>
+        <field name="res_model">isp.payment.proof</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_payment_proof_search"/>
+        <field name="domain">[('state', 'in', ('submitted', 'review'))]</field>
+        <field name="context">{'search_default_queue': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Antrian kosong. Cek screenshot, rekening tujuan, nominal, dan no.ref sebelum setujui.
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -5,7 +5,7 @@
         <field name="name">isp.discount.tree</field>
         <field name="model">isp.discount</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="code"/>
                 <field name="type"/>
@@ -13,7 +13,7 @@
                 <field name="account_id"/>
                 <field name="journal_id"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -46,11 +46,7 @@
                         </page>
                     </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -66,7 +62,7 @@
                 <separator/>
                 <filter string="Aktif" name="active" domain="[('active','=',True)]"/>
                 <filter string="Arsip" name="inactive" domain="[('active','=',False)]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter string="Tipe" name="type" context="{'group_by':'type'}"/>
                     <filter string="Akun" name="account" context="{'group_by':'account_id'}"/>
                     <filter string="Jurnal" name="journal" context="{'group_by':'journal_id'}"/>
@@ -79,7 +75,7 @@
     <record id="action_isp_discount" model="ir.actions.act_window">
         <field name="name">Diskon</field>
         <field name="res_model">isp.discount</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Buat diskon pertama Anda

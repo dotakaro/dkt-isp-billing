@@ -1,17 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
-        <!-- Cron untuk update status PPPoE -->
         <record id="ir_cron_update_pppoe_status" model="ir.cron">
-            <field name="name">Update Status PPPoE CPE</field>
+            <field name="name">ISP: Update Status PPPoE CPE</field>
             <field name="model_id" ref="model_isp_cpe"/>
             <field name="state">code</field>
             <field name="code">model._cron_update_pppoe_status()</field>
-            <field name="interval_number">5</field>
+            <field name="interval_number">2</field>
             <field name="interval_type">minutes</field>
-            <field name="numbercall">-1</field>
-            <field name="doall" eval="False"/>
             <field name="active" eval="True"/>
         </record>
     </data>
-</odoo> 
+    <data noupdate="0">
+        <record id="ir_cron_update_pppoe_status" model="ir.cron">
+            <field name="interval_number">2</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_isp_generate_invoices" model="ir.cron">
+            <field name="name">ISP: Buat draft tagihan langganan</field>
+            <field name="model_id" ref="model_isp_subscription"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_generate_invoices()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_isp_mark_overdue" model="ir.cron">
+            <field name="name">ISP: Tandai langganan nunggak (tanpa isolir)</field>
+            <field name="model_id" ref="model_isp_subscription"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_mark_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_isp_auto_isolate" model="ir.cron">
+            <field name="name">ISP: Isolir otomatis (OFF — Radius/fintech)</field>
+            <field name="model_id" ref="model_isp_subscription"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_auto_isolate_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="False"/>
+        </record>
+        <record id="ir_cron_isp_onboarding_evidence" model="ir.cron">
+            <field name="name">ISP: Eviden pasang baru (pengingat + cabut 24 jam)</field>
+            <field name="model_id" ref="model_isp_wa_registration"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_onboarding_evidence()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_isp_router_health" model="ir.cron">
+            <field name="name">ISP: Cek health router area</field>
+            <field name="model_id" ref="model_isp_mikrotik_config"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_check_router_health()</field>
+            <field name="interval_number">3</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

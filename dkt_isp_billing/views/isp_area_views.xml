@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_area_list" model="ir.ui.view">
+        <field name="name">isp.area.list</field>
+        <field name="model">isp.area</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="router_count"/>
+                <field name="partner_count"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_isp_area_form" model="ir.ui.view">
+        <field name="name">isp.area.form</field>
+        <field name="model">isp.area</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_push_standard_profiles"
+                            type="object"
+                            string="Push profile standar"
+                            class="btn-primary"/>
+                    <button name="action_import_secrets_to_odoo"
+                            type="object"
+                            string="Import secret ke Odoo"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_routers" type="object" class="oe_stat_button" icon="fa-sitemap">
+                            <field name="router_count" widget="statinfo" string="Router"/>
+                        </button>
+                        <button name="action_view_partners" type="object" class="oe_stat_button" icon="fa-users">
+                            <field name="partner_count" widget="statinfo" string="Pelanggan"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nama area / desa"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Router" name="routers">
+                            <field name="mikrotik_config_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="access_host"/>
+                                    <field name="host"/>
+                                    <field name="username"/>
+                                    <field name="session_backend"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Harga paket" name="prices">
+                            <field name="area_price_ids">
+                                <list editable="bottom">
+                                    <field name="package_id"/>
+                                    <field name="price"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Admin Desa / Kolektor" name="village_admin"
+                              groups="dkt_isp_billing.group_isp_manager,base.group_system">
+                            <field name="admin_user_ids" widget="many2many_tags"/>
+                        </page>
+                        <page string="Catatan" name="note">
+                            <field name="note" placeholder="Catatan area"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_isp_area_search" model="ir.ui.view">
+        <field name="name">isp.area.search</field>
+        <field name="model">isp.area</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="code"/>
+                <filter string="Aktif" name="active" domain="[('active', '=', True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_isp_area" model="ir.actions.act_window">
+        <field name="name">Area / Desa</field>
+        <field name="res_model">isp.area</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_area_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Daftarkan area / desa</p>
+        </field>
+    </record>
+</odoo>

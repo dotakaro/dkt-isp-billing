@@ -5,14 +5,14 @@
         <field name="name">isp.device.history.tree</field>
         <field name="model">isp.device.history</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="date"/>
                 <field name="partner_id"/>
                 <field name="device_name"/>
                 <field name="technician_id"/>
                 <field name="cost"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -43,11 +43,7 @@
                         </group>
                     </group>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -56,6 +52,6 @@
     <record id="action_isp_device_history" model="ir.actions.act_window">
         <field name="name">Riwayat Perangkat</field>
         <field name="res_model">isp.device.history</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 </odoo> 

@@ -58,6 +58,7 @@ class ISPInstallationFee(models.Model):
     def create_invoice(self):
         self.ensure_one()
         # Cari journal penjualan
+        self.env['isp.subscription']._ensure_indonesian_accounting()
         sale_journal = self.env['account.journal'].search([('type', '=', 'sale')], limit=1)
         if not sale_journal:
             raise ValidationError('Tidak ditemukan jurnal penjualan. Silakan buat jurnal penjualan terlebih dahulu.')
@@ -83,11 +84,13 @@ class ISPInstallationFee(models.Model):
             'partner_id': self.partner_id.id,
             'invoice_date': self.date,
             'journal_id': sale_journal.id,
+            'isp_invoice_kind': 'installation',
             'invoice_line_ids': [(0, 0, {
                 'name': f'Biaya Instalasi - {self.installation_type_id.name}',
                 'quantity': 1,
                 'price_unit': self.amount,
                 'account_id': installation_revenue_account.id,
+                'tax_ids': [(6, 0, [])],
             })],
         }
         

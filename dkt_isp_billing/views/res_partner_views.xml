@@ -4,7 +4,7 @@
     <record id="action_isp_customer" model="ir.actions.act_window">
         <field name="name">Pelanggan</field>
         <field name="res_model">res.partner</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="domain">[('customer_rank', '>', 0)]</field>
         <field name="context">{
             'default_customer_rank': 1,
@@ -25,10 +25,12 @@
         <field name="name">res.partner.isp.tree</field>
         <field name="model">res.partner</field>
         <field name="arch" type="xml">
-            <tree string="Pelanggan">
+            <list string="Pelanggan">
                 <field name="name"/>
+                <field name="area_id"/>
                 <field name="street"/>
-                <field name="mobile"/>
+                <field name="phone"/>
+                <field name="phone_wa" optional="hide"/>
                 <field name="email"/>
                 <field name="subscription_count"/>
                 <field name="cpe_count"/>
@@ -38,8 +40,8 @@
                         string="Pasang Baru" 
                         type="action" 
                         icon="fa-plug"
-                        context="{'default_is_new_customer': False, 'default_partner_id': active_id}"/>
-            </tree>
+                        context="{'default_is_new_customer': False, 'default_partner_id': id}"/>
+            </list>
         </field>
     </record>
     
@@ -62,6 +64,10 @@
                             type="object"
                             class="btn-success"
                             invisible="state != 'isolated'"/>
+                    <button name="action_parse_phone_from_secret"
+                            string="Parse nomor dari secret"
+                            type="object"
+                            class="btn-secondary"/>
                     <field name="state" widget="statusbar"/>
                 </header>
             </xpath>
@@ -90,23 +96,42 @@
                 </button>
             </xpath>
             
-            <xpath expr="//field[@name='duplicated_bank_account_partners_count']" position="after">
-                <field name="emergency_contact" invisible="1"/>
-                <field name="emergency_phone" invisible="1"/>
-                <field name="notes" invisible="1"/>
-            </xpath>
-            
             <xpath expr="//notebook/page[1]" position="before">
                 <page string="ISP" name="isp" data-section="isp" data-default-active="1">
                     <group>
                         <group string="Informasi ISP">
+                            <field name="area_id"/>
+                            <field name="phone_wa"/>
+                            <field name="isp_phone_from_secret"/>
                             <field name="subscription_count"/>
                             <field name="cpe_count"/>
                             <field name="total_outstanding"/>
+                            <field name="isp_notif_prepared"/>
+                            <field name="isp_notif_prepared_date" invisible="not isp_notif_prepared"/>
                         </group>
                         <group string="Kontak Darurat">
                             <field name="emergency_contact"/>
                             <field name="emergency_phone"/>
+                        </group>
+                    </group>
+                    <group string="Audit pendaftaran">
+                        <group>
+                            <field name="isp_registered_by_name" readonly="1"/>
+                            <field name="isp_registered_by_phone" readonly="1"/>
+                            <field name="isp_registered_by_user_id" readonly="1"/>
+                            <field name="isp_wa_registration_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Eviden pemasangan">
+                        <group>
+                            <field name="identity_number"/>
+                            <field name="isp_evidence_complete"/>
+                            <field name="isp_latitude"/>
+                            <field name="isp_longitude"/>
+                        </group>
+                        <group>
+                            <field name="isp_ktp_image" widget="image" class="oe_avatar"/>
+                            <field name="isp_house_image" widget="image"/>
                         </group>
                     </group>
                     <group string="Catatan">
@@ -114,8 +139,8 @@
                     </group>
                 </page>
                 <page string="CPE" name="cpe">
-                    <field name="cpe_ids" context="{'default_partner_id': active_id}">
-                        <tree>
+                    <field name="cpe_ids" context="{'default_partner_id': id}">
+                        <list>
                             <field name="name"/>
                             <field name="mac_address"/>
                             <field name="ip_address"/>
@@ -144,27 +169,19 @@
                                     type="object"
                                     icon="fa-stop"
                                     invisible="state not in ('open', 'isolated')"/>
-                        </tree>
+                        </list>
                     </field>
                     <div class="oe_right oe_button_box" name="cpe_buttons">
                         <button name="%(dkt_isp_billing.action_isp_cpe)d" 
                                 type="action" 
                                 class="btn btn-primary"
                                 string="Tambah CPE Baru"
-                                context="{'default_partner_id': active_id}"/>
+                                context="{'default_partner_id': id}"/>
                     </div>
                 </page>
             </xpath>
             
             <xpath expr="//page[@name='contact_addresses']" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </xpath>
-
-            <xpath expr="//page[@name='internal_notes']" position="attributes">
-                <attribute name="invisible">1</attribute>
-            </xpath>
-
-            <xpath expr="//page[@name='sales_purchases']" position="attributes">
                 <attribute name="invisible">1</attribute>
             </xpath>
         </field>
@@ -189,14 +206,17 @@
         <field name="arch" type="xml">
             <search string="Cari Pelanggan">
                 <field name="name"/>
+                <field name="area_id"/>
                 <field name="street"/>
-                <field name="mobile"/>
+                <field name="phone"/>
                 <field name="email"/>
                 <separator/>
                 <filter string="Aktif" name="active" domain="[('state', '=', 'active')]"/>
                 <filter string="Non-Aktif" name="inactive" domain="[('state', '=', 'inactive')]"/>
                 <filter string="Terisolir" name="isolated" domain="[('state', '=', 'isolated')]"/>
-                <group expand="0" string="Group By">
+                <filter string="Antrian pemberitahuan" name="notif_prepared" domain="[('isp_notif_prepared', '=', True)]"/>
+                <group>
+                    <filter string="Area" name="group_by_area" context="{'group_by': 'area_id'}"/>
                     <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
                 </group>
             </search>

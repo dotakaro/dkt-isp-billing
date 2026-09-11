@@ -5,19 +5,33 @@
         <field name="name">isp.subscription.tree</field>
         <field name="model">isp.subscription</field>
         <field name="arch" type="xml">
-            <tree decoration-info="state == 'draft'" 
+            <list decoration-info="state == 'draft'" 
                   decoration-success="state == 'open'"
-                  decoration-warning="state == 'isolated'"
-                  decoration-danger="state == 'terminated'">
+                  decoration-warning="state == 'isolated' or overdue_marked or is_special_treatment"
+                  decoration-danger="state == 'terminated' or is_late">
+                <header>
+                    <button name="action_generate_invoices" type="object" string="Buat tagihan"/>
+                    <button name="action_remap_commercial_packages" type="object" string="Petakan paket komersial"/>
+                    <button name="action_mark_overdue" type="object" string="Tandai telat"/>
+                    <button name="action_open_isolate_bulk" type="object" string="Isolir massal"/>
+                    <button name="action_prepare_notification" type="object" string="Pemberitahuan WA"/>
+                    <button name="action_retry_unisolate" type="object" string="Coba buka isolir lagi"/>
+                </header>
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="cpe_id"/>
                 <field name="package_id"/>
+                <field name="area_id"/>
                 <field name="date_start"/>
                 <field name="next_invoice_date"/>
                 <field name="amount"/>
+                <field name="is_special_treatment" optional="show"/>
+                <field name="billing_review_needed" optional="hide"/>
+                <field name="is_late" optional="show"/>
+                <field name="overdue_marked" optional="hide"/>
+                <field name="unisolate_failed" optional="hide"/>
                 <field name="state"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -36,8 +50,17 @@
                             invisible="state != 'isolated'"/>
                     <button name="action_terminate" string="Terminasi" type="object" class="btn-danger" 
                             invisible="state not in ['open', 'isolated']"/>
-                    <button name="generate_invoice" string="Buat Invoice" type="object" class="btn-primary" 
+                    <button name="generate_invoice" string="Buat tagihan" type="object" class="btn-primary" 
                             invisible="state not in ['open', 'isolated']"/>
+                    <button name="action_mark_overdue" string="Tandai nunggak" type="object"
+                            invisible="state != 'open'"/>
+                    <button name="action_isp_pay_cash" string="Bayar tunai / Kas" type="object"
+                            class="btn-primary"
+                            invisible="state not in ['open', 'isolated']"/>
+                    <button name="action_isp_upload_proof" string="Unggah bukti transfer" type="object"
+                            invisible="state not in ['open', 'isolated']"/>
+                    <button name="action_retry_unisolate" string="Coba buka isolir lagi" type="object"
+                            invisible="not unisolate_failed"/>
                     <button name="unlink_draft_invoice" string="Hapus Invoice Draft" type="object" class="btn-secondary" 
                             invisible="invoice_draft_count == 0"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,open,isolated,terminated"/>
@@ -65,11 +88,17 @@
                         <group>
                             <field name="partner_id" readonly="state != 'draft'"/>
                             <field name="cpe_id" readonly="state != 'draft'"/>
-                            <field name="package_id" readonly="state != 'draft'"/>
+                            <field name="package_id"
+                                   help="Harga tagihan. Profile default mengikuti paket, misalnya Paket 200 → 200-10M."/>
+                            <field name="profile_template_id"
+                                   readonly="state in ('terminated',)"
+                                   help="Opsional. Paket 200 tapi dapat 15M/20M: pilih 200-15M atau 200-20M."/>
+                            <field name="area_id" readonly="1"/>
                             <field name="date_start" readonly="state != 'draft'"/>
                         </group>
                         <group>
-                            <field name="due_day"/>
+                            <field name="due_day" readonly="1"
+                                   help="Kebijakan: jatuh tempo tanggal 1 setiap bulan."/>
                             <field name="next_invoice_date"/>
                             <field name="recurring_interval"/>
                             <field name="recurring_rule_type"/>
@@ -77,10 +106,14 @@
                     </group>
                     <group string="Tagihan">
                         <group>
-                            <field name="amount"/>
+                            <field name="amount" widget="monetary"/>
+                            <field name="currency_id" invisible="1"/>
                             <field name="discount_id"/>
                             <field name="discount_amount"/>
-                            <field name="final_amount"/>
+                            <field name="final_amount" widget="monetary"/>
+                            <field name="is_special_treatment"/>
+                            <field name="billing_review_needed"/>
+                            <field name="billing_review_note" invisible="not billing_review_needed"/>
                         </group>
                         <group>
                             <field name="invoice_draft_count"/>
@@ -88,12 +121,17 @@
                             <field name="invoice_paid_count"/>
                             <field name="invoice_overdue_count"/>
                             <field name="total_unpaid_amount" widget="monetary"/>
+                            <field name="is_late"/>
+                            <field name="is_overdue"/>
+                            <field name="overdue_marked"/>
+                            <field name="unisolate_failed"/>
+                            <field name="unisolate_error" invisible="not unisolate_failed"/>
                         </group>
                     </group>
                     <notebook>
                         <page string="Invoice" name="invoice">
                             <field name="invoice_ids" readonly="1">
-                                <tree decoration-info="state == 'draft'"
+                                <list decoration-info="state == 'draft'"
                                       decoration-success="payment_state == 'paid'"
                                       decoration-warning="payment_state == 'partial'"
                                       decoration-danger="payment_state in ['not_paid'] and invoice_date_due &lt; current_date">
@@ -113,8 +151,9 @@
                                             string="Pay"
                                             type="object"
                                             icon="fa-money"
+                                            groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
                                             invisible="state != 'posted' or payment_state == 'paid'"/>
-                                </tree>
+                                </list>
                                 <form>
                                     <header>
                                         <button name="action_post" 
@@ -126,6 +165,7 @@
                                                 string="Register Payment"
                                                 type="object"
                                                 class="oe_highlight"
+                                                groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
                                                 invisible="state != 'posted' or payment_state == 'paid'"/>
                                         <field name="state" widget="statusbar"/>
                                     </header>
@@ -147,12 +187,12 @@
                                         <notebook>
                                             <page string="Invoice Lines" name="invoice_lines">
                                                 <field name="invoice_line_ids" readonly="1">
-                                                    <tree>
+                                                    <list>
                                                         <field name="name"/>
                                                         <field name="quantity"/>
                                                         <field name="price_unit"/>
                                                         <field name="price_subtotal"/>
-                                                    </tree>
+                                                    </list>
                                                 </field>
                                             </page>
                                         </notebook>
@@ -162,11 +202,7 @@
                         </page>
                     </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -187,9 +223,16 @@
                 <filter string="Terisolir" name="isolated" domain="[('state', '=', 'isolated')]"/>
                 <filter string="Terminasi" name="terminated" domain="[('state', '=', 'terminated')]"/>
                 <separator/>
-                <group expand="0" string="Group By">
+                <filter string="Perlakuan khusus" name="special_treatment" domain="[('is_special_treatment', '=', True)]"/>
+                <filter string="Perlu review tarif" name="billing_review" domain="[('billing_review_needed', '=', True)]"/>
+                <filter string="Telat" name="late" domain="['|', ('is_late', '=', True), ('overdue_marked', '=', True)]"/>
+                <filter string="Nunggak" name="overdue" domain="['|', ('is_late', '=', True), ('overdue_marked', '=', True)]"/>
+                <filter string="Gagal buka isolir" name="unisolate_failed" domain="[('unisolate_failed', '=', True)]"/>
+                <separator/>
+                <group>
                     <filter string="Pelanggan" name="group_by_partner" context="{'group_by': 'partner_id'}"/>
                     <filter string="Paket" name="group_by_package" context="{'group_by': 'package_id'}"/>
+                    <filter string="Area" name="group_by_area" context="{'group_by': 'area_id'}"/>
                     <filter string="Status" name="group_by_state" context="{'group_by': 'state'}"/>
                 </group>
             </search>
@@ -200,7 +243,7 @@
     <record id="action_isp_subscription" model="ir.actions.act_window">
         <field name="name">Subscription</field>
         <field name="res_model">isp.subscription</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="context">{'search_default_open': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
@@ -209,11 +252,53 @@
         </field>
     </record>
 
+    <record id="action_isp_subscription_late" model="ir.actions.act_window">
+        <field name="name">Telat / Nunggak</field>
+        <field name="res_model">isp.subscription</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_subscription_search"/>
+        <field name="domain">['&amp;', ('is_special_treatment', '=', False), '|', ('is_late', '=', True), ('overdue_marked', '=', True)]</field>
+        <field name="context">{'search_default_late': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Belum ada langganan telat (mulai tanggal 21)
+            </p>
+        </field>
+    </record>
+
+    <record id="action_isp_subscription_special" model="ir.actions.act_window">
+        <field name="name">Perlakuan khusus</field>
+        <field name="res_model">isp.subscription</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_subscription_search"/>
+        <field name="domain">[('is_special_treatment', '=', True)]</field>
+        <field name="context">{'search_default_special_treatment': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tidak ada langganan tanpa harga / perlu review
+            </p>
+        </field>
+    </record>
+
+    <record id="action_isp_unisolate_failed" model="ir.actions.act_window">
+        <field name="name">Gagal buka isolir</field>
+        <field name="res_model">isp.subscription</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_isp_subscription_search"/>
+        <field name="domain">[('unisolate_failed', '=', True)]</field>
+        <field name="context">{'search_default_unisolate_failed': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tidak ada langganan yang gagal dibuka isolir otomatis
+            </p>
+        </field>
+    </record>
+
     <!-- Action untuk Subscription Draft -->
     <record id="action_isp_subscription_draft" model="ir.actions.act_window">
         <field name="name">Subscription Draft</field>
         <field name="res_model">isp.subscription</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="context">{'search_default_draft': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

@@ -5,12 +5,37 @@
         <field name="name">isp.mikrotik.config.tree</field>
         <field name="model">isp.mikrotik.config</field>
         <field name="arch" type="xml">
-            <tree string="Mikrotik">
+            <list string="Mikrotik">
+                <header>
+                    <button name="action_check_health"
+                            type="object"
+                            string="Cek health"
+                            display="always"/>
+                    <button name="action_import_all_reachable_secrets"
+                            type="object"
+                            string="Import secret semua router terjangkau"
+                            display="always"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
+                    <button name="action_apply_bandwidth_savings_7m"
+                            type="object"
+                            string="Cap bandwidth 7M (hemat)"
+                            display="always"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
+                </header>
                 <field name="name"/>
+                <field name="area_id"/>
+                <field name="access_host" optional="show"/>
                 <field name="host"/>
                 <field name="username"/>
+                <field name="session_backend"/>
+                <field name="bandwidth_cap_exempt" optional="show"/>
+                <field name="health_state"/>
+                <field name="last_ping_ok" optional="show"/>
+                <field name="last_ping_ms" optional="show"/>
+                <field name="last_check" optional="show"/>
+                <field name="last_test_ok" optional="hide"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -25,6 +50,22 @@
                             string="Test Koneksi" 
                             type="object"
                             class="oe_highlight"/>
+                    <button name="action_check_health"
+                            string="Cek health (ping)"
+                            type="object"/>
+                    <button name="action_push_standard_profiles"
+                            string="Push profile standar"
+                            type="object"/>
+                    <button name="action_import_secrets_to_odoo"
+                            string="Import secret ke Odoo"
+                            type="object"
+                            class="oe_highlight"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
+                    <button name="action_push_radius_users"
+                            string="Push user ke RADIUS"
+                            type="object"
+                            invisible="session_backend != 'radius'"
+                            groups="dkt_isp_billing.group_isp_manager,base.group_system"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -34,20 +75,47 @@
                     </div>
                     <group>
                         <group>
-                            <field name="host" placeholder="contoh: 192.168.1.1:8728"/>
+                            <field name="area_id" options="{'no_create': False}"/>
+                            <field name="access_host" placeholder="contoh: id01.konekterus.com:16286"/>
+                            <field name="host" readonly="1"/>
                             <field name="port" invisible="1"/>
+                            <field name="session_backend"/>
+                            <field name="radius_nas_ip"
+                                   placeholder="IP egress NAS"
+                                   invisible="session_backend != 'radius'"/>
+                            <field name="radius_nas_identifier"
+                                   placeholder="Identity MikroTik"
+                                   invisible="session_backend != 'radius'"/>
+                            <field name="radius_secret"
+                                   password="True"
+                                   invisible="session_backend != 'radius'"/>
                         </group>
                         <group>
                             <field name="username"/>
                             <field name="password" password="True"/>
                             <field name="active"/>
+                            <field name="bandwidth_cap_exempt"/>
+                            <field name="bandwidth_cap_rate" placeholder="7M/7M atau 10M/10M"/>
+                            <field name="last_test_ok" readonly="1"/>
+                            <field name="last_test_message" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Health router">
+                        <group>
+                            <field name="identity_name" readonly="1"/>
+                            <field name="health_state" readonly="1"/>
+                            <field name="last_ping_ok" readonly="1"/>
+                            <field name="last_ping_ms" readonly="1"/>
+                            <field name="last_icmp_ok" readonly="1"/>
+                            <field name="last_icmp_ms" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="last_check" readonly="1"/>
+                            <field name="last_error" readonly="1"/>
                         </group>
                     </group>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -59,11 +127,17 @@
         <field name="arch" type="xml">
             <search string="Mikrotik">
                 <field name="name"/>
+                <field name="area_id"/>
+                <field name="access_host"/>
                 <field name="host"/>
-                <field name="username"/>
                 <separator/>
                 <filter string="Aktif" name="active" domain="[('active', '=', True)]"/>
                 <filter string="Arsip" name="inactive" domain="[('active', '=', False)]"/>
+                <filter string="Bebas cap 7M" name="cap_exempt" domain="[('bandwidth_cap_exempt', '=', True)]"/>
+                <separator/>
+                <filter string="Terjangkau" name="health_ok" domain="[('health_state', '=', 'reachable')]"/>
+                <filter string="Timeout" name="health_timeout" domain="[('health_state', '=', 'timeout')]"/>
+                <filter string="Nonaktif / dilewati" name="health_inactive" domain="[('health_state', 'in', ['inactive', 'skipped'])]"/>
             </search>
         </field>
     </record>
@@ -72,12 +146,21 @@
     <record id="view_isp_mikrotik_config_action" model="ir.actions.act_window">
         <field name="name">Mikrotik</field>
         <field name="res_model">isp.mikrotik.config</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_isp_mikrotik_config_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Buat konfigurasi Mikrotik baru
             </p>
         </field>
+    </record>
+
+    <record id="action_server_import_all_secrets" model="ir.actions.server">
+        <field name="name">Import secret semua router terjangkau</field>
+        <field name="model_id" ref="model_isp_mikrotik_config"/>
+        <field name="binding_model_id" ref="model_isp_mikrotik_config"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">action = model.action_import_all_reachable_secrets()</field>
     </record>
 </odoo> 

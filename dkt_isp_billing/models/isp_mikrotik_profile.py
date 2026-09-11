@@ -11,9 +11,20 @@ class ISPMikrotikProfile(models.Model):
 
     name = fields.Char('Nama Profile', required=True, tracking=True)
     mikrotik_id = fields.Char('ID di Mikrotik', readonly=True)
+    template_id = fields.Many2one(
+        'isp.pppoe.profile.template', string='Template kanonik', tracking=True, index=True,
+    )
     mikrotik_config_id = fields.Many2one('isp.mikrotik.config', string='Router Mikrotik', 
                                         required=True, tracking=True,
                                         help="Router Mikrotik tempat profile ini dibuat")
+    sync_state = fields.Selection(
+        [('pending', 'Pending'), ('synced', 'Synced'), ('error', 'Error')],
+        string='Status sync',
+        default='pending',
+        tracking=True,
+    )
+    sync_error = fields.Text('Error sync', readonly=True)
+    last_sync = fields.Datetime('Sync terakhir', readonly=True)
     rate_limit = fields.Char('Rate Limit', required=True, tracking=True,
                           help="Format: [upload]M/[download]M (contoh: 10M/20M)")
     local_address = fields.Char('Local Address', tracking=True)
@@ -142,9 +153,9 @@ class ISPMikrotikProfile(models.Model):
     def action_create_in_mikrotik(self):
         """Membuat profile baru di Mikrotik Router"""
         self.ensure_one()
-        mikrotik = self.mikrotik_config_id or self.env['isp.mikrotik.config'].search([('active', '=', True)], limit=1)
+        mikrotik = self.mikrotik_config_id
         if not mikrotik:
-            raise ValidationError('Konfigurasi Mikrotik tidak ditemukan!')
+            raise ValidationError('Pilih router area pada profile ini.')
             
         api = mikrotik.get_connection()
         if not api:

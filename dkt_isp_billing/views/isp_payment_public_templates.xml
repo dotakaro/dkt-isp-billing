@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="public_upload_page" name="Unggah bukti transfer">
+        <t t-call="portal.frontend_layout">
+            <t t-set="no_header" t-value="False"/>
+            <div id="wrap" class="o_portal container py-4">
+                <div class="row justify-content-center">
+                    <div class="col-md-6 col-lg-5">
+                        <h1 class="h4">Unggah bukti transfer</h1>
+                        <p class="text-muted">
+                            <t t-esc="company_name"/>. Bukti masuk antrian, belum lunas
+                            sampai admin pusat memverifikasi.
+                        </p>
+                        <t t-if="error">
+                            <div class="alert alert-danger" t-esc="error"/>
+                        </t>
+                        <t t-if="success">
+                            <div class="alert alert-success">Bukti diterima dan menunggu verifikasi admin pusat.</div>
+                        </t>
+                        <t t-if="invoice">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div>Tagihan: <strong t-esc="invoice.name"/></div>
+                                    <div>Sisa: <strong t-esc="amount_due"/> <t t-esc="currency.name"/></div>
+                                    <t t-if="dest_account">
+                                        <div class="text-muted mt-2">Transfer ke</div>
+                                        <div t-esc="dest_bank"/>
+                                        <div t-esc="dest_account"/>
+                                        <div t-esc="dest_name"/>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+                        <form t-if="can_upload and not success" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" t-att-value="csrf_token"/>
+                            <div class="mb-3">
+                                <label class="form-label" for="public_name">Nama</label>
+                                <input id="public_name" class="form-control" type="text" name="public_name" required="required" maxlength="80"/>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="public_phone">Nomor HP</label>
+                                <input id="public_phone" class="form-control" type="tel" name="public_phone" required="required" maxlength="40"/>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="isp_proof">Screenshot / PDF</label>
+                                <input id="isp_proof" class="form-control" type="file" name="isp_proof" accept="image/*,.pdf" required="required"/>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Kirim bukti</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_isp_cash_payment_wizard_form" model="ir.ui.view">
+        <field name="name">isp.cash.payment.wizard.form</field>
+        <field name="model">isp.cash.payment.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Bayar tunai / Kas">
+                <group>
+                    <field name="note" nolabel="1" colspan="2"/>
+                    <field name="is_submitter_only" invisible="1"/>
+                </group>
+                <group>
+                    <group>
+                        <field name="partner_id"/>
+                        <field name="subscription_id"/>
+                        <field name="invoice_id"/>
+                    </group>
+                    <group>
+                        <field name="journal_id"/>
+                        <field name="amount"/>
+                        <field name="amount_residual"/>
+                        <field name="payment_date"/>
+                        <field name="communication"/>
+                        <field name="currency_id" invisible="1"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_submit" type="object" string="Ajukan kas ke pusat"
+                            class="oe_highlight"
+                            invisible="not is_submitter_only"
+                            confirm="Ajukan kas ke antrian. Belum lunas. Lanjutkan?"/>
+                    <button name="action_confirm" type="object" string="Post pembayaran kas"
+                            class="oe_highlight"
+                            invisible="is_submitter_only"
+                            groups="dkt_isp_billing.group_isp_manager,dkt_isp_billing.group_isp_user,base.group_system"
+                            confirm="Post account.payment ke jurnal Kas. Lanjutkan?"/>
+                    <button string="Batal" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_isp_cash_payment_wizard" model="ir.actions.act_window">
+        <field name="name">Bayar tunai / Kas</field>
+        <field name="res_model">isp.cash.payment.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

@@ -1,15 +1,16 @@
 {
     'name': 'DKT ISP Billing',
-    'version': '1.0',
+    'version': '19.0.1.21.28',
     'category': 'Services/ISP',
     'summary': 'Modul billing untuk ISP',
     'description': """
-        Modul billing untuk ISP dengan fitur:
-        - Manajemen pelanggan
-        - Manajemen layanan
-        - Manajemen perangkat
-        - Billing dan invoice
-        - Integrasi dengan Mikrotik
+Modul billing untuk ISP dengan fitur:
+
+* Manajemen pelanggan
+* Manajemen layanan
+* Manajemen perangkat
+* Billing dan invoice
+* Integrasi dengan Mikrotik
     """,
     'author': 'PT. Digital Kreasi Teknologi',
     'website': 'https://dkt.co.id',
@@ -40,6 +41,13 @@
         'data/product_data.xml',
         'data/uom_data.xml',
         'data/master_data.xml',
+        'data/isp_area_router_data.xml',
+        'data/isp_pppoe_profile_template_data.xml',
+        'data/isp_package_data.xml',
+        'data/isp_billing_policy_data.xml',
+        'data/ir_cron.xml',
+        'views/isp_area_views.xml',
+        'views/isp_pppoe_profile_template_views.xml',
         'views/isp_mikrotik_views.xml',
         'views/isp_mikrotik_profile_views.xml',
         'views/isp_package_views.xml',
@@ -48,17 +56,46 @@
         'views/isp_device_history_views.xml',
         'views/isp_subscription_template_views.xml',
         'views/isp_cpe_views.xml',
+        'views/isp_cpe_pppoe_history_views.xml',
         'views/isp_subscription_views.xml',
         'views/isp_discount_views.xml',
         'views/isp_report_views.xml',
         'views/isp_invoice_views.xml',
+        'views/isp_dashboard_views.xml',
         'views/isp_installation_wizard_views.xml',
+        'views/isp_payment_proof_views.xml',
+        'views/isp_payment_portal_templates.xml',
+        'views/isp_payment_public_templates.xml',
+        'views/isp_isolir_landing_templates.xml',
+        'views/isp_whatsapp_message_views.xml',
+        'views/isp_whatsapp_template_views.xml',
+        'views/isp_wa_registration_views.xml',
+        'views/res_users_views.xml',
+        'views/res_config_settings_views.xml',
+        'wizards/isp_import_secret_wizard_views.xml',
+        'wizards/isp_billing_run_wizard_views.xml',
+        'wizards/isp_isolate_bulk_wizard_views.xml',
+        'wizards/isp_notification_prepare_wizard_views.xml',
+        'wizards/isp_cash_payment_wizard_views.xml',
+        'wizards/isp_payment_reject_wizard_views.xml',
+        'wizards/isp_parse_phone_wizard_views.xml',
         'views/res_partner_views.xml',
         'reports/isp_report_templates.xml',
         'views/menu_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'dkt_isp_billing/static/src/js/cpe_list.js',
+            'dkt_isp_billing/static/src/css/isp_dashboard.css',
+            'dkt_isp_billing/static/src/js/isp_dashboard.js',
+            'dkt_isp_billing/static/src/xml/isp_dashboard.xml',
+            'dkt_isp_billing/static/src/js/isp_billing_dashboard.js',
+            'dkt_isp_billing/static/src/xml/isp_billing_dashboard.xml',
+        ],
+    },
     'installable': True,
     'application': True,
     'auto_install': False,
     'license': 'LGPL-3',
+    'post_init_hook': 'post_init_hook',
 } 

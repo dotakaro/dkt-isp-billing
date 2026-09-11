@@ -1,0 +1,10 @@
+# User tidak ada di SQL: jangan Access-Reject.
+# MikroTik (timeout ~300ms) lalu memakai secret lokal.
+dkt_unknown_use_local {
+	if (!&control:Cleartext-Password && !&control:NT-Password) {
+		update control {
+			Response-Packet-Type := Do-Not-Respond
+		}
+		handled
+	}
+}

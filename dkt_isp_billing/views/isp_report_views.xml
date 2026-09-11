@@ -5,13 +5,13 @@
         <field name="name">isp.report.tree</field>
         <field name="model">isp.report</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="date_from"/>
                 <field name="date_to"/>
                 <field name="report_type"/>
                 <field name="state"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -49,6 +49,6 @@
     <record id="action_isp_report" model="ir.actions.act_window">
         <field name="name">Laporan</field>
         <field name="res_model">isp.report</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 </odoo> 
